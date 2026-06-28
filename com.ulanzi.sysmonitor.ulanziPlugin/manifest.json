@@ -1,0 +1,38 @@
+{
+  "Author": "Miroslav Babitski",
+  "Name": "System Monitor",
+  "Description": "Live CPU & memory graphs in the style of the Windows 10 Task Manager. Place this action across a row of adjacent keys to form one wide graph — the more keys, the wider the screen. Use a second row for the other metric (top row = CPU, bottom row = RAM, automatically).",
+  "Icon": "assets/icons/pluginIcon.png",
+  "Version": "1.0.0",
+  "Category": "System Monitor",
+  "CategoryIcon": "assets/icons/categoryIcon.png",
+  "CodePath": "plugin/app.js",
+  "Type": "JavaScript",
+  "Inspect": "--inspect=127.0.0.1:9234",
+  "PrivateAPI": true,
+  "UUID": "com.ulanzi.ulanzistudio.sysmonitor",
+  "Actions": [
+    {
+      "Name": "System Monitor",
+      "Icon": "assets/icons/monitor.png",
+      "PropertyInspectorPath": "property-inspector/inspector.html",
+      "state": 0,
+      "States": [
+        { "Name": "Monitor", "Image": "assets/icons/monitor.png" }
+      ],
+      "Tooltip": "Live CPU/RAM graph — place across a row of keys",
+      "UUID": "com.ulanzi.ulanzistudio.sysmonitor.graph",
+      "SupportedInMultiActions": false,
+      "DisableAutomaticStates": true,
+      "Controllers": ["Keypad"],
+      "Devices": []
+    }
+  ],
+  "OS": [
+    { "Platform": "windows", "MinimumVersion": "10" },
+    { "Platform": "mac", "MinimumVersion": "10.13" }
+  ],
+  "Software": {
+    "MinVersion": "2.1.4"
+  }
+}

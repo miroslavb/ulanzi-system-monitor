@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover" />
+  <title>System Monitor</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css">
+  <style>
+    .uspi-item-label { width: 116px; }
+    .hint { padding: 4px 12px 8px; color: #969696; font-size: 11px; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <form id="property-inspector">
+
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Metric">Metric</div>
+        <select class="uspi-item-value select" name="metric" id="metric">
+          <option value="auto" selected data-localize="Auto (by row: CPU then RAM)">Auto (by row: CPU then RAM)</option>
+          <option value="cpu" data-localize="CPU">CPU</option>
+          <option value="mem" data-localize="Memory">Memory</option>
+        </select>
+      </div>
+
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Refresh">Refresh</div>
+        <select class="uspi-item-value select" name="refresh" id="refresh">
+          <option value="500" selected data-localize="0.5 sec">0.5 sec</option>
+          <option value="1000" data-localize="1 sec">1 sec</option>
+          <option value="2000" data-localize="2 sec">2 sec</option>
+        </select>
+      </div>
+
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Theme">Theme</div>
+        <select class="uspi-item-value select" name="theme" id="theme">
+          <option value="dark" selected data-localize="Dark">Dark</option>
+          <option value="light" data-localize="Light">Light</option>
+        </select>
+      </div>
+
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Show labels">Show labels</div>
+        <div class="uspi-item-value">
+          <div class="uspi-item-child" style="margin-top:-1px;">
+            <input id="showText" name="showText" type="checkbox" value="on" checked>
+            <label for="showText" class="uspi-item-label"><span></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint" data-localize="SysmonHint">
+        Place this action on several adjacent keys in a row to make one wide graph.
+        Keep the same settings across the row. For both graphs, use a second row —
+        with Auto, the top row shows CPU and the next shows RAM.
+      </div>
+
+    </form>
+  </div>
+
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanziApi.js"></script>
+  <script src="./inspector.js"></script>
+</body>
+</html>

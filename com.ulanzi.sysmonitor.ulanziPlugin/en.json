@@ -1,0 +1,22 @@
+{
+  "Name": "System Monitor",
+  "Description": "Live CPU & memory graphs (Windows 10 Task Manager style) across a row of keys.",
+  "Actions": [
+    { "Name": "System Monitor", "Tooltip": "Live CPU/RAM graph — place across a row of keys" }
+  ],
+  "Localization": {
+    "Metric": "Metric",
+    "Auto (by row: CPU then RAM)": "Auto (by row: CPU then RAM)",
+    "CPU": "CPU",
+    "Memory": "Memory",
+    "Refresh": "Refresh",
+    "0.5 sec": "0.5 sec",
+    "1 sec": "1 sec",
+    "2 sec": "2 sec",
+    "Theme": "Theme",
+    "Dark": "Dark",
+    "Light": "Light",
+    "Show labels": "Show labels",
+    "SysmonHint": "Place this action on several adjacent keys in a row to make one wide graph. Keep the same settings across the row. For both graphs, use a second row — with Auto, the top row shows CPU and the next shows RAM."
+  }
+}
