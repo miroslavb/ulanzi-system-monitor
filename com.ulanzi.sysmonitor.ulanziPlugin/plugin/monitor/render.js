@@ -78,15 +78,12 @@ export function buildInner(o) {
   if (o.showText === true) {
     const val = Math.round(o.value || 0);
     const head = `${m.label} ${val}%`;
-    const chipW = head.length * 8 + 14;
+    // Single text element (no tspan) so the label and value can never overlap.
+    const chipW = Math.round(head.length * 7.5 + 14);
     text +=
       `<rect x="4" y="4" width="${chipW}" height="22" rx="4" fill="${t.chip}"/>` +
-      `<text x="11" y="19" ${FAM} font-size="12" fill="${t.sub}">${esc(m.label)} ` +
-      `<tspan font-size="13" font-weight="700" fill="${t.text}">${val}%</tspan></text>`;
+      `<text x="11" y="20" ${FAM} font-size="13" font-weight="700" fill="${t.text}">${esc(head)}</text>`;
     if (o.sub) text += `<text x="6" y="${H - 7}" ${FAM} font-size="11" fill="${t.sub}">${esc(o.sub)}</text>`;
-    text +=
-      `<text x="${W - 5}" y="15" ${FAM} font-size="10" fill="${t.axis}" text-anchor="end">100%</text>` +
-      `<text x="${W - 5}" y="${H - 6}" ${FAM} font-size="10" fill="${t.axis}" text-anchor="end">0</text>`;
   }
 
   return `${defs}<rect x="0" y="0" width="${W}" height="${H}" fill="${t.bg}"/>` +

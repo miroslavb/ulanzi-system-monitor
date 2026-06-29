@@ -11,8 +11,8 @@
     "Grid": "Grid (same on every key of one graph)",
     "Columns": "Columns",
     "Rows": "Rows",
-    "This column": "This column",
-    "This row": "This row",
+    "This key": "This key",
+    "PickerHint": "Click the cell this key occupies in the grid.",
     "Display": "Display",
     "Refresh": "Refresh",
     "0.5 sec": "0.5 sec",
@@ -23,6 +23,6 @@
     "Light": "Light",
     "Show labels": "Show labels",
     "Diagnostics": "Diagnostics",
-    "SysmonHint": "Each key draws the whole graph and shows its own cell, so keys never interfere. For ONE graph across several keys, set the same Columns, Rows and Metric on every key of it, and give each key its This column / This row (0-based, top-left = 0,0). Leave them empty for auto (use the key's own position). A single key with Columns=Rows=1 just shows a full graph. Use one block for CPU and another for Memory."
+    "SysmonHint": "Each key draws the whole graph and shows only its own cell. For ONE graph across several keys, set the same Columns, Rows and Metric on every key, and click that key's cell in the grid above. A single key with Columns=Rows=1 is a full graph. Use one set of keys for CPU and another for Memory."
   }
 }

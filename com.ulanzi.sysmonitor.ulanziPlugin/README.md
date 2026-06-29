@@ -17,10 +17,8 @@ ids). To make **one big graph across several keys**:
 
 1. Decide the grid, e.g. **3 columns × 3 rows** for a 3×3.
 2. On **every** key of that graph set the **same Columns, Rows and Metric**.
-3. Give each key its position with **This column** / **This row** (0-based,
-   top-left = `0,0`). Leave them **empty for auto** (uses the key's own position —
-   works when the device's key ids are stable; set them manually if a key shows
-   the wrong part).
+3. **Click that key's cell** in the visual grid picker (top-left = `0,0`). The
+   picker only offers valid cells, so you can't misconfigure the position.
 
 - A single key with **Columns = Rows = 1** is just a full graph.
 - A **row** (Columns = N, Rows = 1) → wide graph; a **column** → tall graph;
@@ -32,7 +30,7 @@ ids). To make **one big graph across several keys**:
 
 - **Metric** — `CPU` (default) or `Memory`.
 - **Columns / Rows** — the grid size (1–8). Same on every key of a graph.
-- **This column / This row** — this key's cell (0-based). Empty = auto.
+- **This key** — a visual grid picker; click the cell this key occupies.
 - **Refresh** — `0.5s` (default) / `1s` / `2s`.
 - **Theme** — `Dark` (default) or `Light`.
 - **Show labels** — small top-left chip with the metric + current %, a sub-label

@@ -11,6 +11,13 @@
     .hint { padding: 6px 12px 10px; color: #9aa0a6; font-size: 11px; line-height: 1.5; }
     .hint b { color: #cfcfcf; }
     input[type="number"].uspi-item-value { max-width: 80px; }
+    .cellpicker { display: grid; gap: 3px; }
+    .cellpicker .cell {
+      width: 22px; height: 22px; border: 1px solid #6b6b6b; border-radius: 3px;
+      background: #2b2b2b; cursor: pointer;
+    }
+    .cellpicker .cell.sel { background: #17a2d6; border-color: #17a2d6; }
+    .picker-hint { color: #9aa0a6; font-size: 11px; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -25,7 +32,7 @@
         </select>
       </div>
 
-      <div class="uspi-heading" data-localize="Grid">Grid (set the same on every key of one graph)</div>
+      <div class="uspi-heading" data-localize="Grid">Grid (same on every key of one graph)</div>
 
       <div class="uspi-item">
         <div class="uspi-item-label" data-localize="Columns">Columns</div>
@@ -35,14 +42,15 @@
         <div class="uspi-item-label" data-localize="Rows">Rows</div>
         <input class="uspi-item-value" type="number" name="rows" id="rows" min="1" max="8" value="1">
       </div>
-      <div class="uspi-item">
-        <div class="uspi-item-label" data-localize="This column">This column</div>
-        <input class="uspi-item-value" type="number" name="cellCol" id="cellCol" min="0" max="7" placeholder="auto">
+      <div class="uspi-item alignTop">
+        <div class="uspi-item-label" data-localize="This key">This key</div>
+        <div class="uspi-item-value">
+          <div id="cellpicker" class="cellpicker"></div>
+          <div class="picker-hint" data-localize="PickerHint">Click the cell this key occupies in the grid.</div>
+        </div>
       </div>
-      <div class="uspi-item">
-        <div class="uspi-item-label" data-localize="This row">This row</div>
-        <input class="uspi-item-value" type="number" name="cellRow" id="cellRow" min="0" max="7" placeholder="auto">
-      </div>
+      <input type="hidden" name="cellCol" id="cellCol" value="0">
+      <input type="hidden" name="cellRow" id="cellRow" value="0">
 
       <div class="uspi-heading" data-localize="Display">Display</div>
 
@@ -81,12 +89,11 @@
       </div>
 
       <div class="hint" data-localize="SysmonHint">
-        Each key draws the whole graph and shows its own cell, so keys never
-        interfere. For ONE graph across several keys, set the <b>same Columns, Rows
-        and Metric</b> on every key of it, and give each key its <b>This column</b> /
-        <b>This row</b> (0-based, top-left = 0,0). Leave them empty for <b>auto</b>
-        (use the key's own position). A single key with Columns=Rows=1 just shows a
-        full graph. Use one block for CPU and another for Memory.
+        Each key draws the whole graph and shows only its own cell. For ONE graph
+        across several keys, set the <b>same Columns, Rows and Metric</b> on every
+        key, and <b>click that key's cell</b> in the grid above. A single key with
+        Columns=Rows=1 is a full graph. Use one set of keys for CPU and another for
+        Memory.
       </div>
 
     </form>
