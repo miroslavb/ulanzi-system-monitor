@@ -10,8 +10,11 @@ $UD.onConnected(() => {
   document.querySelector('.uspi-wrapper').classList.remove('hidden');
 
   form.addEventListener('input', Utils.debounce(() => {
-    ACTION_SETTING = Utils.getFormValue(form);
-    $UD.sendParamFromPlugin(ACTION_SETTING);
+    const value = Utils.getFormValue(form);
+    // FormData omits an unchecked checkbox — send the state explicitly as boolean.
+    value.showText = !!document.querySelector('#showText').checked;
+    ACTION_SETTING = value;
+    $UD.sendParamFromPlugin(value);
   }));
 });
 
@@ -20,5 +23,9 @@ $UD.onParamFromApp((jsn) => { if (jsn && jsn.param) loadSettings(jsn.param); });
 
 function loadSettings(params) {
   ACTION_SETTING = params || {};
-  if (form) Utils.setFormValue(ACTION_SETTING, form);
+  if (!form) return;
+  Utils.setFormValue(ACTION_SETTING, form);
+  // setFormValue can't match a boolean against the checkbox value — set it directly.
+  const st = document.querySelector('#showText');
+  if (st) st.checked = !(ACTION_SETTING.showText === false || ACTION_SETTING.showText === 'off' || ACTION_SETTING.showText === 'false');
 }

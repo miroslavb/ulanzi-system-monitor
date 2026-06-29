@@ -8,9 +8,11 @@ wide graph.
 
 The D200H "information window" is a built-in Ulanzi Studio widget and is **not**
 accessible to plugins, so the SDK only lets a plugin draw to the LCD **keys**.
-This plugin turns a **row of keys** into a wide graph: it renders one
-Task-Manager-style SVG across the row and crops it per key via the SVG `viewBox`,
-so the line is continuous. Place it on two rows for CPU (top) + RAM (bottom).
+This plugin turns a **block of keys** into one graph: it renders a
+Task-Manager-style SVG across the block and crops it per key via the SVG
+`viewBox`, so the line is continuous. Place the action on a row, a column, or a
+**matrix (e.g. 3×3)** — keys sharing a metric join into one graph that grows
+wider AND taller. Use one block for CPU and another for Memory to show both.
 
 The plugin itself lives in
 [`com.ulanzi.sysmonitor.ulanziPlugin/`](com.ulanzi.sysmonitor.ulanziPlugin/) —

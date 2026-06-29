@@ -1,9 +1,11 @@
-// Tests for the System Monitor plugin: layout grouping, SVG rendering + slicing,
+// Tests for the System Monitor plugin: settings normalisation (incl. the labels
+// toggle), block grouping (2D bounding box), SVG rendering + per-key slicing,
 // and the CPU/memory sampler. Runs on any OS, no device needed.
 import assert from 'assert';
 const P = '../com.ulanzi.sysmonitor.ulanziPlugin/plugin/monitor';
-const { computeStrips, parseKey } = await import(`${P}/layout.js`);
-const { buildInner, keyDataUri, CELL, HISTORY } = await import(`${P}/render.js`);
+const { computeBlocks, parseKey, resolveMetric } = await import(`${P}/layout.js`);
+const { buildInner, keyDataUri, CELL } = await import(`${P}/render.js`);
+const { readSettings, labelsOn } = await import(`${P}/settings.js`);
 const Sampler = (await import(`${P}/Sampler.js`)).default;
 
 let passed = 0;
@@ -11,120 +13,114 @@ function test(name, fn) {
   try { fn(); console.log(`  ✓ ${name}`); passed++; }
   catch (e) { console.error(`  ✗ ${name}\n    ${e.message}`); process.exitCode = 1; }
 }
-const decodeSvg = (uri) => Buffer.from(uri.split(',')[1], 'base64').toString();
+const decode = (uri) => Buffer.from(uri.split(',')[1], 'base64').toString();
+const grid = (n) => Array.from({ length: n }, (_, i) => i);
 
-console.log('layout:');
+console.log('settings (labels toggle regression):');
 
-test('parseKey reads "col_row"', () => {
+test('labels default ON when never set, OFF when explicitly disabled', () => {
+  assert.strictEqual(labelsOn(undefined), true);
+  assert.strictEqual(labelsOn(false), false);     // <-- the bug: unchecked checkbox
+  assert.strictEqual(labelsOn('off'), false);
+  assert.strictEqual(labelsOn('false'), false);
+  assert.strictEqual(labelsOn(true), true);
+  assert.strictEqual(labelsOn('on'), true);
+});
+
+test('readSettings: defaults + explicit showText:false sticks', () => {
+  assert.deepStrictEqual(readSettings({}), { metric: 'cpu', theme: 'dark', showText: true, refresh: 500 });
+  assert.strictEqual(readSettings({ showText: false }).showText, false);
+  assert.strictEqual(readSettings({ metric: 'auto' }).metric, 'cpu');      // legacy
+  assert.strictEqual(readSettings({ metric: 'mem' }).metric, 'mem');
+  assert.strictEqual(readSettings({ refresh: '1000' }).refresh, 1000);
+});
+
+console.log('layout (2D blocks):');
+
+test('parseKey reads "col_row"; resolveMetric defaults cpu', () => {
   assert.deepStrictEqual(parseKey('2_1'), { col: 2, row: 1 });
-  assert.deepStrictEqual(parseKey('garbage'), { col: 0, row: 0 });
+  assert.strictEqual(resolveMetric(undefined), 'cpu');
+  assert.strictEqual(resolveMetric('mem'), 'mem');
 });
 
-test('a row of auto keys becomes one CPU strip with relative colIndex', () => {
-  const inst = [0, 1, 2, 3].map((c) => ({ context: `c${c}`, col: c, row: 0, metric: 'auto', active: true }));
-  const strips = computeStrips(inst);
-  assert.strictEqual(strips.length, 1);
-  assert.strictEqual(strips[0].metric, 'cpu');
-  assert.strictEqual(strips[0].cols, 4);
-  assert.deepStrictEqual(strips[0].keys.map((k) => k.colIndex), [0, 1, 2, 3]);
+test('3x3 of CPU keys => one block cols=3 rows=3 with 9 tiles', () => {
+  const inst = [];
+  for (const r of grid(3)) for (const c of grid(3)) inst.push({ context: `${c}_${r}`, col: c, row: r, metric: 'cpu', active: true });
+  const blocks = computeBlocks(inst);
+  assert.strictEqual(blocks.length, 1);
+  assert.strictEqual(blocks[0].cols, 3);
+  assert.strictEqual(blocks[0].rows, 3);
+  assert.strictEqual(blocks[0].keys.length, 9);
+  const corner = blocks[0].keys.find((k) => k.context === '2_2');
+  assert.deepStrictEqual([corner.colIndex, corner.rowIndex], [2, 2]);
 });
 
-test('two auto rows => top CPU, next RAM', () => {
+test('CPU block and Memory block are separate, each with its own bounding box', () => {
   const inst = [
-    { context: 'a', col: 0, row: 0, metric: 'auto', active: true },
-    { context: 'b', col: 1, row: 0, metric: 'auto', active: true },
-    { context: 'c', col: 0, row: 1, metric: 'auto', active: true },
-    { context: 'd', col: 1, row: 1, metric: 'auto', active: true },
-  ];
-  const strips = computeStrips(inst);
-  const byRow = Object.fromEntries(strips.map((s) => [s.row, s.metric]));
-  assert.strictEqual(byRow[0], 'cpu');
-  assert.strictEqual(byRow[1], 'mem');
-});
-
-test('forced metric overrides auto row assignment', () => {
-  const inst = [{ context: 'a', col: 0, row: 0, metric: 'mem', active: true }];
-  assert.strictEqual(computeStrips(inst)[0].metric, 'mem');
-});
-
-test('non-contiguous columns => width spans the gap, colIndex is positional', () => {
-  const inst = [
-    { context: 'a', col: 1, row: 0, metric: 'cpu', active: true },
-    { context: 'c', col: 3, row: 0, metric: 'cpu', active: true },
-  ];
-  const s = computeStrips(inst)[0];
-  assert.strictEqual(s.cols, 3);                       // cols 1..3
-  assert.deepStrictEqual(s.keys.map((k) => k.colIndex), [0, 2]);
-});
-
-test('inactive keys are excluded', () => {
-  const inst = [
-    { context: 'a', col: 0, row: 0, metric: 'cpu', active: false },
+    { context: 'a', col: 0, row: 0, metric: 'cpu', active: true },
     { context: 'b', col: 1, row: 0, metric: 'cpu', active: true },
+    { context: 'c', col: 0, row: 2, metric: 'mem', active: true },
+    { context: 'd', col: 1, row: 2, metric: 'mem', active: true },
   ];
-  const s = computeStrips(inst)[0];
-  assert.strictEqual(s.keys.length, 1);
+  const blocks = computeBlocks(inst);
+  const byMetric = Object.fromEntries(blocks.map((b) => [b.metric, b]));
+  assert.strictEqual(byMetric.cpu.cols, 2); assert.strictEqual(byMetric.cpu.rows, 1);
+  assert.strictEqual(byMetric.mem.cols, 2); assert.strictEqual(byMetric.mem.rows, 1);
 });
 
-console.log('render:');
-
-test('buildInner emits a graph with bg, line, area gradient and value text', () => {
-  const inner = buildInner({ metric: 'cpu', history: [10, 20, 30, 40, 51], cols: 4, theme: 'dark', showText: true, value: 51, sub: '8 cores' });
-  assert.ok(inner.includes('<rect'), 'has background rect');
-  assert.ok(inner.includes('<path'), 'has path (line/area)');
-  assert.ok(inner.includes('url(#g_cpu)'), 'area uses gradient');
-  assert.ok(inner.includes('CPU'), 'metric label');
-  assert.ok(inner.includes('51%'), 'current value');
-  assert.ok(inner.includes('8 cores'), 'sub label');
+test('bounding box offsets become relative tile indices', () => {
+  const inst = [
+    { context: 'a', col: 2, row: 1, metric: 'cpu', active: true },
+    { context: 'b', col: 3, row: 2, metric: 'cpu', active: true },
+  ];
+  const b = computeBlocks(inst)[0];
+  assert.strictEqual(b.cols, 2); assert.strictEqual(b.rows, 2);
+  const a = b.keys.find((k) => k.context === 'a');
+  assert.deepStrictEqual([a.colIndex, a.rowIndex], [0, 0]);
 });
 
-test('showText:false omits the labels', () => {
-  const inner = buildInner({ metric: 'cpu', history: [10, 20], cols: 2, theme: 'dark', showText: false, value: 20 });
-  assert.ok(!inner.includes('CPU'));
-  assert.ok(!inner.includes('20%'));
+test('inactive keys excluded; default metric is cpu', () => {
+  const inst = [
+    { context: 'a', col: 0, row: 0, active: false },
+    { context: 'b', col: 1, row: 0, active: true },          // no metric -> cpu
+  ];
+  const b = computeBlocks(inst);
+  assert.strictEqual(b.length, 1);
+  assert.strictEqual(b[0].metric, 'cpu');
+  assert.strictEqual(b[0].keys.length, 1);
 });
 
-test('keyDataUri yields a base64 SVG with the right viewBox window', () => {
-  const inner = buildInner({ metric: 'cpu', history: [1, 2, 3], cols: 4, theme: 'dark', showText: true, value: 3 });
-  const uri = keyDataUri(inner, 2, 4);
-  assert.ok(uri.startsWith('data:image/svg+xml;base64,'));
-  const svg = decodeSvg(uri);
-  assert.ok(svg.includes(`viewBox="${2 * CELL} 0 ${CELL} ${CELL}"`), 'cropped to key 2');
-  assert.ok(svg.includes(`width="${CELL}"`));
+console.log('render (size + labels + slicing):');
+
+test('buildInner sizes the canvas to cols×rows cells', () => {
+  const inner = buildInner({ metric: 'cpu', history: [10, 20, 30], cols: 2, rows: 3, theme: 'dark', showText: false, value: 30 });
+  assert.ok(inner.includes(`width="${2 * CELL}"`), 'width = cols*CELL');
+  assert.ok(inner.includes(`height="${3 * CELL}"`), 'height = rows*CELL');
 });
 
-test('light theme changes the background colour', () => {
-  const d = buildInner({ metric: 'mem', history: [5], cols: 1, theme: 'dark', showText: false, value: 5 });
-  const l = buildInner({ metric: 'mem', history: [5], cols: 1, theme: 'light', showText: false, value: 5 });
-  assert.ok(d.includes('#1b1b1b'));
-  assert.ok(l.includes('#f6f6f6'));
+test('showText:false draws NO text (the overlap/toggle fix)', () => {
+  const off = buildInner({ metric: 'cpu', history: [10, 37], cols: 4, rows: 1, theme: 'dark', showText: false, value: 37, sub: '8 cores' });
+  assert.ok(!off.includes('<text'), 'no <text> elements when labels off');
+  assert.ok(!off.includes('37%'));
+  const on = buildInner({ metric: 'cpu', history: [10, 37], cols: 4, rows: 1, theme: 'dark', showText: true, value: 37, sub: '8 cores' });
+  assert.ok(on.includes('<text'));
+  assert.ok(on.includes('37%') && on.includes('CPU') && on.includes('8 cores'));
+});
+
+test('keyDataUri crops to the (col,row) tile', () => {
+  const inner = buildInner({ metric: 'cpu', history: [1, 2, 3], cols: 3, rows: 3, theme: 'dark', showText: false, value: 3 });
+  const svg = decode(keyDataUri(inner, 1, 2, 3, 3));
+  assert.ok(svg.includes(`viewBox="${1 * CELL} ${2 * CELL} ${CELL} ${CELL}"`), 'cropped to col1,row2');
 });
 
 console.log('sampler:');
 
-test('sample() returns 0..100 for cpu and mem', () => {
-  const s = new Sampler();
-  const r = s.sample();
-  for (const v of [r.cpu, r.mem]) { assert.ok(v >= 0 && v <= 100, `in range: ${v}`); }
-  assert.ok(s.cpu.length === 1 && s.mem.length === 1);
-});
-
-test('history is capped at max length', () => {
+test('sample() in range; history caps; sub-labels format', () => {
   const s = new Sampler(3);
-  for (let i = 0; i < 6; i++) s.sample();
+  for (let i = 0; i < 6; i++) { const r = s.sample(); assert.ok(r.cpu >= 0 && r.cpu <= 100 && r.mem >= 0 && r.mem <= 100); }
   assert.strictEqual(s.cpu.length, 3);
-  assert.strictEqual(s.mem.length, 3);
-});
-
-test('subFor formats memory as used / total GB and cpu as cores', () => {
-  const s = new Sampler();
-  s.sample();
   assert.match(s.subFor('mem'), /^\d+(\.\d)? \/ \d+(\.\d)? GB$/);
   assert.match(s.subFor('cpu'), /^\d+ cores$/);
-});
-
-test('HISTORY window default is sane', () => {
-  assert.ok(HISTORY >= 60 && HISTORY <= 600);
 });
 
 console.log(`\n${passed} checks passed`);

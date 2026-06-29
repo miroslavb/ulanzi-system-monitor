@@ -1,29 +1,24 @@
 // Main service for the System Monitor (Task-Manager-style) Ulanzi plugin.
 //
-// One process samples CPU + memory and repaints every placed key. Keys on the same
-// row form a strip; a single wide graph is drawn and cropped per key via viewBox.
+// One process samples CPU + memory and repaints every placed key. Keys that share
+// a metric are joined into one rectangular block; a single graph is drawn at the
+// block size and cropped per key via viewBox (grows wide AND tall).
 
 import { UlanziApi } from './common-node/index.js';
 import Sampler from './monitor/Sampler.js';
 import { buildInner, keyDataUri } from './monitor/render.js';
-import { computeStrips, parseKey } from './monitor/layout.js';
+import { computeBlocks, parseKey } from './monitor/layout.js';
+import { readSettings, DEFAULT_MS } from './monitor/settings.js';
 
 const PLUGIN_UUID = 'com.ulanzi.ulanzistudio.sysmonitor';
-const MIN_MS = 250, MAX_MS = 2000, DEFAULT_MS = 500;
+const MIN_MS = 250, MAX_MS = 2000;
 
 const $UD = new UlanziApi();
 const sampler = new Sampler();
 const INSTANCES = {};            // context -> { context, col, row, active, metric, theme, showText, refresh }
 let refreshMs = DEFAULT_MS;
 let timer = null;
-let fallbackCol = 0;     // used only if the host key id isn't "col_row"
-
-// Resolve a key's grid position. The host uses "col_row"; if a future device uses
-// a different scheme, tile keys left-to-right in placement order rather than collapse.
-function positionFor(key) {
-  if (/^\d+_\d+$/.test(String(key))) return parseKey(key);
-  return { col: fallbackCol++, row: 0 };
-}
+let fallbackCol = 0;             // used only if the host key id isn't "col_row"
 
 $UD.connect(PLUGIN_UUID);
 $UD.onConnected(() => {
@@ -31,26 +26,23 @@ $UD.onConnected(() => {
   startTimer();
 });
 
-function readSettings(param = {}) {
-  const refresh = parseInt(param.refresh, 10);
-  return {
-    metric: ['cpu', 'mem', 'auto'].includes(param.metric) ? param.metric : 'auto',
-    theme: param.theme === 'light' ? 'light' : 'dark',
-    showText: !(param.showText === 'off' || param.showText === false),
-    refresh: Number.isFinite(refresh) ? refresh : DEFAULT_MS,
-  };
+// Resolve a key's grid position. Host uses "col_row"; unknown schemes tile L→R.
+function positionFor(key) {
+  if (/^\d+_\d+$/.test(String(key))) return parseKey(key);
+  return { col: fallbackCol++, row: 0 };
 }
 
-function upsert(jsn, applyOnly = false) {
+function upsert(jsn) {
   const ctx = jsn.context;
-  const s = readSettings(jsn.param);
   if (!INSTANCES[ctx]) {
-    const { col, row } = positionFor($UD.decodeContext(ctx).key);
+    const key = $UD.decodeContext(ctx).key;
+    const { col, row } = positionFor(key);
+    $UD.logMessage(`add key="${key}" -> col=${col} row=${row}`, 'debug');
     INSTANCES[ctx] = { context: ctx, col, row, active: true };
   }
-  Object.assign(INSTANCES[ctx], s);
+  Object.assign(INSTANCES[ctx], readSettings(jsn.param));
   recomputeRefresh();
-  if (!applyOnly) paint();      // immediate repaint so changes show at once
+  paint();
 }
 
 $UD.onAdd((jsn) => upsert(jsn));
@@ -86,23 +78,24 @@ function tick() {
 }
 
 function paint() {
-  const strips = computeStrips(Object.values(INSTANCES));
-  for (const strip of strips) {
-    if (!strip.keys.length) continue;
-    const first = INSTANCES[strip.keys[0].context];
-    const history = strip.metric === 'mem' ? sampler.mem : sampler.cpu;
-    const value = strip.metric === 'mem' ? sampler.lastMem.pct : sampler.lastCpu;
+  const blocks = computeBlocks(Object.values(INSTANCES));
+  for (const b of blocks) {
+    if (!b.keys.length) continue;
+    const first = INSTANCES[b.keys[0].context];
+    const history = b.metric === 'mem' ? sampler.mem : sampler.cpu;
+    const value = b.metric === 'mem' ? sampler.lastMem.pct : sampler.lastCpu;
     const inner = buildInner({
-      metric: strip.metric,
+      metric: b.metric,
       history,
-      cols: strip.cols,
+      cols: b.cols,
+      rows: b.rows,
       theme: first.theme,
       showText: first.showText,
       value,
-      sub: sampler.subFor(strip.metric),
+      sub: sampler.subFor(b.metric),
     });
-    for (const k of strip.keys) {
-      $UD.setBaseDataIcon(k.context, keyDataUri(inner, k.colIndex, strip.cols), '');
+    for (const k of b.keys) {
+      $UD.setBaseDataIcon(k.context, keyDataUri(inner, k.colIndex, k.rowIndex, b.cols, b.rows), '');
     }
   }
 }

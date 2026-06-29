@@ -5,39 +5,46 @@ Live **CPU** and **memory** graphs on your Ulanzi Deck, styled like the
 
 Because the plugin SDK can only draw to the LCD **keys** (the D200H "information
 window" is a built-in Ulanzi Studio widget and is *not* accessible to plugins),
-this plugin makes a "wide screen" by **tiling one graph across a row of keys**:
-drop the action on several adjacent keys and they render a single continuous
-graph. The more keys you use, the wider it gets.
+this plugin makes a "wide screen" by **tiling one graph across a block of keys**.
 
 ![preview](preview.png)
 
-## Layout
+## Layout — how to combine keys
 
-- Place **System Monitor** on a row of adjacent keys → one wide graph.
-- Place it on a **second row** too → with **Auto** metric, the top row shows
-  **CPU** and the next row shows **RAM** (Task-Manager style, stacked).
-- Or force a row to a specific metric in its settings.
+Place **System Monitor** on a **block of keys** — any rectangle:
+
+- a **row** → a wide graph;
+- a **column** → a tall graph;
+- a **matrix** (e.g. **3×3**) → one big graph that's both wide and tall.
+
+All keys that share the same **Metric** are joined into **one** graph spanning
+their bounding box, and each key shows its slice (the line is continuous across
+the whole block). The more keys, the bigger the graph.
+
+To show **both** CPU and RAM, make **two blocks**: set one block's keys to
+**CPU** and the other block's keys to **Memory** (e.g. CPU on the top rows, RAM
+on the bottom rows). Use the same settings on every key of a block.
 
 ## Settings (Property Inspector)
 
-- **Metric** — `Auto (by row: CPU then RAM)`, `CPU`, or `Memory`.
+- **Metric** — `CPU` (default) or `Memory`. Same metric = same block.
 - **Refresh** — `0.5s` (default) / `1s` / `2s`.
 - **Theme** — `Dark` (default) or `Light`.
-- **Show labels** — overlay the metric name, current %, and sub-label
-  (cores / used·total GB) plus the 100%/0 axis.
-
-Keep the settings identical across all keys of one row.
+- **Show labels** — small top-left chip with the metric + current %, a sub-label
+  (cores / used·total GB) and the 100%/0 axis. Turn it **off** for a clean graph
+  with no text.
 
 ## How it works
 
 - Node main service (official UlanziDeck SDK). One process samples CPU
   (`os.cpus()` idle/total deltas) and memory (`os.totalmem`/`freemem`) every
   refresh tick and repaints each placed key.
-- Keys are grouped into per-row strips using their `col_row` id. For each strip a
-  single wide **SVG** graph is built (Win10 colours: CPU cyan `#17a2d6`, Memory
+- Keys are grouped into **blocks** by metric using their `col_row` id (the
+  bounding box of all keys sharing a metric). For each block a single **SVG**
+  graph is built at the block size (Win10 colours: CPU cyan `#17a2d6`, Memory
   violet `#c56fe6`, grid + area fill + value), then cropped per key via the SVG
-  `viewBox` so the line is continuous across the row. Pure SVG — **no native
-  dependencies** (only `ws`, bundled).
+  `viewBox` (`col×CELL row×CELL`) so the line is continuous across the whole
+  matrix. Pure SVG — **no native dependencies** (only `ws`, bundled).
 
 ## Requirements
 
@@ -74,7 +81,8 @@ com.ulanzi.sysmonitor.ulanziPlugin/
     └── monitor/
         ├── Sampler.js       CPU + memory sampling, rolling history
         ├── render.js        Win10-Task-Manager SVG graph + viewBox slicing
-        └── layout.js        group keys into per-row strips, auto CPU/RAM
+        ├── layout.js        group keys into blocks (bounding box per metric)
+        └── settings.js      normalise PI settings (incl. labels toggle)
 ```
 
 Built with the [UlanziDeck Plugin SDK](https://github.com/UlanziTechnology/UlanziDeckPlugin-SDK). Apache-2.0.

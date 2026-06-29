@@ -1,9 +1,9 @@
 {
   "Author": "Miroslav Babitski",
   "Name": "System Monitor",
-  "Description": "Live CPU & memory graphs in the style of the Windows 10 Task Manager. Place this action across a row of adjacent keys to form one wide graph — the more keys, the wider the screen. Use a second row for the other metric (top row = CPU, bottom row = RAM, automatically).",
+  "Description": "Live CPU & memory graphs in the style of the Windows 10 Task Manager, drawn across your deck keys. Place this action on a block of keys (a row, a column, or e.g. 3x3) — keys with the same metric join into one graph that grows wider AND taller. Set one block to CPU and another to Memory to show both.",
   "Icon": "assets/icons/pluginIcon.png",
-  "Version": "1.0.0",
+  "Version": "1.1.0",
   "Category": "System Monitor",
   "CategoryIcon": "assets/icons/categoryIcon.png",
   "CodePath": "plugin/app.js",
@@ -18,19 +18,30 @@
       "PropertyInspectorPath": "property-inspector/inspector.html",
       "state": 0,
       "States": [
-        { "Name": "Monitor", "Image": "assets/icons/monitor.png" }
+        {
+          "Name": "Monitor",
+          "Image": "assets/icons/monitor.png"
+        }
       ],
-      "Tooltip": "Live CPU/RAM graph — place across a row of keys",
+      "Tooltip": "Live CPU/RAM graph — place on a block of keys",
       "UUID": "com.ulanzi.ulanzistudio.sysmonitor.graph",
       "SupportedInMultiActions": false,
       "DisableAutomaticStates": true,
-      "Controllers": ["Keypad"],
+      "Controllers": [
+        "Keypad"
+      ],
       "Devices": []
     }
   ],
   "OS": [
-    { "Platform": "windows", "MinimumVersion": "10" },
-    { "Platform": "mac", "MinimumVersion": "10.13" }
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    },
+    {
+      "Platform": "mac",
+      "MinimumVersion": "10.13"
+    }
   ],
   "Software": {
     "MinVersion": "2.1.4"

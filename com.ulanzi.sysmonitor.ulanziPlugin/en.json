@@ -6,7 +6,6 @@
   ],
   "Localization": {
     "Metric": "Metric",
-    "Auto (by row: CPU then RAM)": "Auto (by row: CPU then RAM)",
     "CPU": "CPU",
     "Memory": "Memory",
     "Refresh": "Refresh",
@@ -17,6 +16,6 @@
     "Dark": "Dark",
     "Light": "Light",
     "Show labels": "Show labels",
-    "SysmonHint": "Place this action on several adjacent keys in a row to make one wide graph. Keep the same settings across the row. For both graphs, use a second row — with Auto, the top row shows CPU and the next shows RAM."
+    "SysmonHint": "Place this action on a block of keys — any rectangle: a row, a column, or e.g. 3×3. All keys with the same Metric join into ONE graph that grows wider AND taller as you add keys. To show both at once, set one block to CPU and another block to Memory. Use the same settings on every key of a block."
   }
 }

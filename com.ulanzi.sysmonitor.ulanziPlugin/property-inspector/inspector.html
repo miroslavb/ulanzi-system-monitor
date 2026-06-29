@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="../libs/css/uspi.css">
   <style>
     .uspi-item-label { width: 116px; }
-    .hint { padding: 4px 12px 8px; color: #969696; font-size: 11px; line-height: 1.45; }
+    .hint { padding: 6px 12px 10px; color: #9aa0a6; font-size: 11px; line-height: 1.5; }
+    .hint b { color: #cfcfcf; }
   </style>
 </head>
 <body>
@@ -18,8 +19,7 @@
       <div class="uspi-item">
         <div class="uspi-item-label" data-localize="Metric">Metric</div>
         <select class="uspi-item-value select" name="metric" id="metric">
-          <option value="auto" selected data-localize="Auto (by row: CPU then RAM)">Auto (by row: CPU then RAM)</option>
-          <option value="cpu" data-localize="CPU">CPU</option>
+          <option value="cpu" selected data-localize="CPU">CPU</option>
           <option value="mem" data-localize="Memory">Memory</option>
         </select>
       </div>
@@ -52,9 +52,11 @@
       </div>
 
       <div class="hint" data-localize="SysmonHint">
-        Place this action on several adjacent keys in a row to make one wide graph.
-        Keep the same settings across the row. For both graphs, use a second row —
-        with Auto, the top row shows CPU and the next shows RAM.
+        Place this action on a <b>block of keys</b> — any rectangle: a row, a column,
+        or e.g. 3×3. All keys with the <b>same Metric</b> join into ONE graph that
+        grows wider AND taller as you add keys. To show both at once, set one block
+        to <b>CPU</b> and another block to <b>Memory</b>. Use the same settings on
+        every key of a block.
       </div>
 
     </form>
