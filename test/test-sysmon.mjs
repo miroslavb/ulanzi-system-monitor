@@ -4,9 +4,13 @@
 import assert from 'assert';
 const P = '../com.ulanzi.sysmonitor.ulanziPlugin/plugin/monitor';
 const { parseKey } = await import(`${P}/layout.js`);
-const { buildInner, keyDataUri, CELL } = await import(`${P}/render.js`);
-const { readSettings, labelsOn, parseCell, resolveCell } = await import(`${P}/settings.js`);
+const { buildInner, keyDataUri, switchKeyDataUri, CELL } = await import(`${P}/render.js`);
+const { readSettings, labelsOn, parseCell, resolveCell, readSwitchSettings, buildHostCycle } = await import(`${P}/settings.js`);
 const Sampler = (await import(`${P}/Sampler.js`)).default;
+const RemoteSamplerMod = await import(`${P}/RemoteSampler.js`);
+const RemoteSampler = RemoteSamplerMod.default;
+const { normalizeAgentUrl } = RemoteSamplerMod;
+const { MDI_LITE } = await import(`${P}/mdi-lite.js`);
 
 let passed = 0;
 function test(name, fn) {
@@ -98,5 +102,75 @@ test('sample() in range; history caps; sub-labels format', () => {
   assert.match(s.subFor('mem'), /^\d+(\.\d)? \/ \d+(\.\d)? GB$/);
   assert.match(s.subFor('cpu'), /^\d+ cores$/);
 });
+
+console.log('host switch (settings + cycle):');
+
+test('readSwitchSettings: defaults, drops urlless hosts, default icon', () => {
+  const s = readSwitchSettings({});
+  assert.strictEqual(s.includeLocal, true);
+  assert.strictEqual(s.localAlias, 'This PC');
+  assert.strictEqual(s.localIcon, 'monitor');
+  assert.deepStrictEqual(s.hosts, []);
+  const s2 = readSwitchSettings({
+    includeLocal: 'off',
+    hosts: [{ alias: 'NUC', url: '100.1.1.1:9888' }, { alias: 'empty' }, { url: 'h:1', icon: 'nas' }],
+  });
+  assert.strictEqual(s2.includeLocal, false);
+  assert.strictEqual(s2.hosts.length, 2, 'host with no url dropped');
+  assert.strictEqual(s2.hosts[0].icon, 'server', 'default icon when omitted');
+  assert.strictEqual(s2.hosts[1].icon, 'nas');
+});
+
+test('buildHostCycle: local first when included; remote ids = r:<url>', () => {
+  const c = buildHostCycle(readSwitchSettings({
+    localAlias: 'PC', localIcon: 'monitor',
+    hosts: [{ alias: 'NUC', url: '100.1.1.1:9888', icon: 'server' }],
+  }));
+  assert.strictEqual(c.length, 2);
+  assert.deepStrictEqual(c[0], { id: 'local', alias: 'PC', icon: 'monitor', url: '' });
+  assert.strictEqual(c[1].id, 'r:100.1.1.1:9888');
+  // excluding local
+  const c2 = buildHostCycle(readSwitchSettings({ includeLocal: false, hosts: [{ alias: 'a', url: 'x:1' }] }));
+  assert.strictEqual(c2.length, 1);
+  assert.strictEqual(c2[0].id, 'r:x:1');
+});
+
+test('normalizeAgentUrl: scheme, default port, /metrics path, preserves token', () => {
+  assert.strictEqual(normalizeAgentUrl('100.64.1.2'), 'http://100.64.1.2:9888/metrics');
+  assert.strictEqual(normalizeAgentUrl('host:7000'), 'http://host:7000/metrics');
+  assert.strictEqual(normalizeAgentUrl('http://h:9888/metrics?token=abc'), 'http://h:9888/metrics?token=abc');
+  assert.strictEqual(normalizeAgentUrl(''), '');
+});
+
+test('switchKeyDataUri: embeds icon path + alias; active draws accent ring', () => {
+  const uri = switchKeyDataUri({ alias: 'NUC', iconPath: MDI_LITE.server, theme: 'dark', active: true });
+  const svg = decode(uri);
+  assert.ok(svg.includes(MDI_LITE.server.slice(0, 24)), 'icon path embedded');
+  assert.ok(svg.includes('>NUC<'), 'alias rendered');
+  assert.ok(svg.includes('#17a2d6') && svg.includes('stroke-width="3"'), 'active accent ring');
+  const off = decode(switchKeyDataUri({ alias: 'NUC', iconPath: MDI_LITE.server, offline: true }));
+  assert.ok(off.includes('#e2504a'), 'offline dot');
+});
+
+test('curated MDI set: present, has expected host icons, light bundle', () => {
+  const keys = Object.keys(MDI_LITE);
+  assert.ok(keys.length > 40 && keys.length < 200, `curated, not the full bundle (${keys.length})`);
+  for (const n of ['server', 'nas', 'raspberry-pi', 'memory', 'monitor', 'linux']) {
+    assert.ok(MDI_LITE[n], `has ${n}`);
+  }
+});
+
+console.log('remote sampler:');
+await (async () => {
+  // Unreachable host: never throws, marks offline, freezes history.
+  const bad = new RemoteSampler('127.0.0.1:1');
+  await bad.sample();
+  test('RemoteSampler unreachable => ok:false, offline sub-label, empty history', () => {
+    assert.strictEqual(bad.ok, false);
+    assert.ok(bad.lastError, 'records an error');
+    assert.strictEqual(bad.cpu.length, 0);
+    assert.strictEqual(bad.subFor('cpu'), 'offline');
+  });
+})();
 
 console.log(`\n${passed} checks passed`);

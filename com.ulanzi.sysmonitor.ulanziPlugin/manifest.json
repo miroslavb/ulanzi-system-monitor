@@ -3,7 +3,7 @@
   "Name": "System Monitor",
   "Description": "Live CPU & memory graphs in the style of the Windows 10 Task Manager, drawn across your deck keys. Each key draws the whole graph and shows its own cell, so keys never interfere. For one big graph across several keys, set the same Columns/Rows/Metric on each and give each its cell (or leave auto). A single key = a full graph. Use one block for CPU and another for Memory.",
   "Icon": "assets/icons/pluginIcon.png",
-  "Version": "1.2.2",
+  "Version": "1.3.0",
   "Category": "System Monitor",
   "CategoryIcon": "assets/icons/categoryIcon.png",
   "CodePath": "plugin/app.js",
@@ -25,6 +25,26 @@
       ],
       "Tooltip": "Live CPU/RAM graph — place on a block of keys",
       "UUID": "com.ulanzi.ulanzistudio.sysmonitor.graph",
+      "SupportedInMultiActions": false,
+      "DisableAutomaticStates": true,
+      "Controllers": [
+        "Keypad"
+      ],
+      "Devices": []
+    },
+    {
+      "Name": "Host Switch",
+      "Icon": "assets/icons/monitor.png",
+      "PropertyInspectorPath": "property-inspector/switcher.html",
+      "state": 0,
+      "States": [
+        {
+          "Name": "Host",
+          "Image": "assets/icons/monitor.png"
+        }
+      ],
+      "Tooltip": "Cycle the monitored host — switches the data source for the graph keys",
+      "UUID": "com.ulanzi.ulanzistudio.sysmonitor.hostswitch",
       "SupportedInMultiActions": false,
       "DisableAutomaticStates": true,
       "Controllers": [

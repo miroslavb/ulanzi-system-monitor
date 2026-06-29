@@ -124,3 +124,36 @@ export function keyDataUri(inner, colIndex, rowIndex, cols, rows) {
     `viewBox="0 0 ${CELL} ${CELL}"><g transform="translate(${tx},${ty})">${inner}</g></svg>`;
   return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
 }
+
+/**
+ * Render the Host Switch key: a centered MDI icon over the host alias.
+ * @param {object} o
+ *   alias     host alias text
+ *   iconPath  MDI 24x24 path "d" string (from mdi-lite); optional
+ *   theme     'dark' | 'light'
+ *   active    true if this host is the currently selected data source (accent ring)
+ *   offline   true if the selected remote source is currently unreachable (red dot)
+ */
+const ACCENT = '#17a2d6';
+function truncate(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+export function switchKeyDataUri(o) {
+  const C = CELL;
+  const t = THEMES[o.theme] || THEMES.dark;
+  const active = !!o.active;
+  const iconColor = active ? ACCENT : t.text;
+
+  // MDI paths use a 24x24 viewBox — scale to a 46px box, centered near the top.
+  const size = 46, scale = size / 24, ix = (C - size) / 2, iy = 15;
+  const icon = o.iconPath
+    ? `<g transform="translate(${ix},${iy}) scale(${scale})"><path d="${o.iconPath}" fill="${iconColor}"/></g>`
+    : '';
+
+  const label = `<text x="${C / 2}" y="88" text-anchor="middle" ${FAM} font-size="15" font-weight="700" fill="${t.text}">${esc(truncate(o.alias, 11))}</text>`;
+  const ring = active ? `<rect x="2.5" y="2.5" width="${C - 5}" height="${C - 5}" rx="10" fill="none" stroke="${ACCENT}" stroke-width="3"/>` : '';
+  const off = o.offline ? `<circle cx="${C - 13}" cy="13" r="6" fill="#e2504a"/>` : '';
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${C}" height="${C}" viewBox="0 0 ${C} ${C}">` +
+    `<rect x="0" y="0" width="${C}" height="${C}" fill="${t.bg}"/>` + ring + icon + label + off + `</svg>`;
+  return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
+}

@@ -1,8 +1,9 @@
 {
   "Name": "System Monitor",
-  "Description": "Live CPU & memory graphs (Windows 10 Task Manager style) across your deck keys.",
+  "Description": "Live CPU & memory graphs (Windows 10 Task Manager style) across your deck keys, with a Host Switch key to monitor remote Tailscale hosts.",
   "Actions": [
-    { "Name": "System Monitor", "Tooltip": "Live CPU/RAM graph — place on a block of keys" }
+    { "Name": "System Monitor", "Tooltip": "Live CPU/RAM graph — place on a block of keys" },
+    { "Name": "Host Switch", "Tooltip": "Cycle the monitored host — switches the data source for the graph keys" }
   ],
   "Localization": {
     "Metric": "Metric",
@@ -23,6 +24,16 @@
     "Light": "Light",
     "Show labels": "Show labels",
     "Diagnostics": "Diagnostics",
-    "SysmonHint": "Each key draws the whole graph and shows only its own cell. For ONE graph across several keys, set the same Columns, Rows and Metric on every key, and click that key's cell in the grid above. A single key with Columns=Rows=1 is a full graph. Use one set of keys for CPU and another for Memory."
+    "SysmonHint": "Each key draws the whole graph and shows only its own cell. For ONE graph across several keys, set the same Columns, Rows and Metric on every key, and click that key's cell in the grid above. A single key with Columns=Rows=1 is a full graph. Use one set of keys for CPU and another for Memory.",
+    "This PC": "This PC (local)",
+    "Include": "Include",
+    "Alias": "Alias",
+    "Icon": "Icon",
+    "Remote hosts": "Remote hosts (Tailscale)",
+    "Agent address": "Agent address",
+    "Add host": "+ Add host",
+    "Search icons": "Search icons…",
+    "Close": "Close",
+    "SwitchHint": "Run a sysmon-agent on each host (see the project README) and enter its address here, e.g. http://100.x.y.z:9888. Pressing this key cycles through the hosts and switches the data source for all System Monitor graph keys on the deck. The key shows the current host's alias and icon."
   }
 }

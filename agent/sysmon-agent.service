@@ -1,0 +1,21 @@
+[Unit]
+Description=Ulanzi System Monitor agent (CPU/RAM metrics for the Ulanzi Deck plugin)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+# Adjust the node path if needed: `which node`
+ExecStart=/usr/bin/node /opt/sysmon-agent/sysmon-agent.mjs
+Environment=SYSMON_AGENT_PORT=9888
+# Optional hardening — bind only to the Tailscale IP and/or require a token:
+# Environment=SYSMON_AGENT_BIND=100.x.y.z
+# Environment=SYSMON_AGENT_TOKEN=change-me
+Restart=on-failure
+RestartSec=3
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

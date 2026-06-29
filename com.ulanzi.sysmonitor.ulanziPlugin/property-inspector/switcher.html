@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover" />
+  <title>Host Switch</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css">
+  <style>
+    .uspi-item-label { width: 96px; }
+    .hint { padding: 6px 12px 10px; color: #9aa0a6; font-size: 11px; line-height: 1.5; }
+    .hint b, .hint code { color: #cfcfcf; }
+    .hostrow {
+      display: grid; grid-template-columns: 84px 1fr 40px 26px; gap: 6px;
+      align-items: center; padding: 4px 12px;
+    }
+    .hostrow input { min-width: 0; }
+    .iconbtn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      height: 28px; border: 1px solid #6b6b6b; border-radius: 4px; background: #2b2b2b;
+      color: #e8e8e8; cursor: pointer; padding: 0 6px;
+    }
+    .iconbtn svg { width: 18px; height: 18px; fill: #e8e8e8; }
+    .h-del {
+      height: 28px; border: 1px solid #6b6b6b; border-radius: 4px; background: #2b2b2b;
+      color: #e2504a; cursor: pointer; font-size: 14px; line-height: 1;
+    }
+    #addhost { margin: 4px 12px 2px; }
+    .rowhdr { display: grid; grid-template-columns: 84px 1fr 40px 26px; gap: 6px;
+      padding: 0 12px; color: #9aa0a6; font-size: 10px; text-transform: uppercase; }
+    /* icon picker modal */
+    .iconmodal { position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center; z-index: 50; }
+    .iconmodal.hidden { display: none; }
+    .iconmodal-box { width: 92%; max-width: 360px; max-height: 80vh; display: flex; flex-direction: column;
+      background: #1f1f1f; border: 1px solid #555; border-radius: 8px; padding: 10px; }
+    #iconsearch { width: 100%; box-sizing: border-box; margin-bottom: 8px; height: 30px;
+      background: #2b2b2b; border: 1px solid #6b6b6b; border-radius: 4px; color: #e8e8e8; padding: 0 8px; }
+    .icongrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; overflow-y: auto; }
+    .icongrid .ic { display: flex; align-items: center; justify-content: center; height: 40px;
+      border: 1px solid #3a3a3a; border-radius: 4px; background: #2b2b2b; cursor: pointer; }
+    .icongrid .ic:hover { border-color: #17a2d6; }
+    .icongrid .ic svg { width: 22px; height: 22px; fill: #e8e8e8; }
+    .modal-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <form id="property-inspector" onsubmit="return false;">
+
+      <div class="uspi-heading" data-localize="This PC">This PC (local)</div>
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Include">Include</div>
+        <div class="uspi-item-value">
+          <div class="uspi-item-child" style="margin-top:-1px;">
+            <input id="includeLocal" type="checkbox" checked>
+            <label for="includeLocal" class="uspi-item-label"><span></span></label>
+          </div>
+        </div>
+      </div>
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Alias">Alias</div>
+        <input class="uspi-item-value" type="text" id="localAlias" placeholder="This PC">
+      </div>
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Icon">Icon</div>
+        <button type="button" class="iconbtn" id="localIconBtn" data-target="local"></button>
+      </div>
+
+      <div class="uspi-heading" data-localize="Remote hosts">Remote hosts (Tailscale)</div>
+      <div class="rowhdr"><span data-localize="Alias">Alias</span><span data-localize="Agent address">Agent address</span><span data-localize="Icon">Icon</span><span></span></div>
+      <div id="hostlist"></div>
+      <button type="button" class="uspi-item-value" id="addhost" data-localize="Add host">+ Add host</button>
+
+      <div class="uspi-heading" data-localize="Display">Display</div>
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Theme">Theme</div>
+        <select class="uspi-item-value select" id="theme">
+          <option value="dark" selected data-localize="Dark">Dark</option>
+          <option value="light" data-localize="Light">Light</option>
+        </select>
+      </div>
+
+      <div class="hint" data-localize="SwitchHint">
+        Run a <b>sysmon-agent</b> on each host (see the project README) and enter its
+        address here, e.g. <code>http://100.x.y.z:9888</code>. Pressing this key cycles
+        through the hosts and switches the data source for all <b>System Monitor</b>
+        graph keys on the deck. The key shows the current host's alias and icon.
+      </div>
+
+    </form>
+  </div>
+
+  <!-- MDI icon picker -->
+  <div id="iconmodal" class="iconmodal hidden">
+    <div class="iconmodal-box">
+      <input id="iconsearch" type="text" placeholder="Search icons…" data-localize="Search icons">
+      <div id="icongrid" class="icongrid"></div>
+      <div class="modal-actions">
+        <button type="button" class="uspi-item-value" id="iconclose" data-localize="Close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanziApi.js"></script>
+  <script src="./mdi-lite.js"></script>
+  <script src="./switcher.js"></script>
+</body>
+</html>

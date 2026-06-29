@@ -44,3 +44,38 @@ export function readSettings(param = {}) {
     diag: param.diag === true || param.diag === 'on',   // per-key diagnostic overlay
   };
 }
+
+// --- Host Switch action ------------------------------------------------------
+// Settings for the cycler key: a list of remote hosts (alias / agent url / MDI
+// icon name), plus an optional "this PC" (local) entry as the first source.
+
+export function readSwitchSettings(param = {}) {
+  const includeLocal = param.includeLocal === undefined
+    ? true
+    : !(param.includeLocal === false || param.includeLocal === 'false' || param.includeLocal === 'off');
+  const hosts = Array.isArray(param.hosts)
+    ? param.hosts
+        .map((h) => ({
+          alias: String((h && h.alias) || '').trim(),
+          url: String((h && h.url) || '').trim(),
+          icon: String((h && h.icon) || '').trim() || 'server',
+        }))
+        .filter((h) => h.url)
+    : [];
+  return {
+    includeLocal,
+    localAlias: (param.localAlias && String(param.localAlias).trim()) || 'This PC',
+    localIcon: (param.localIcon && String(param.localIcon).trim()) || 'monitor',
+    hosts,
+    theme: param.theme === 'light' ? 'light' : 'dark',
+  };
+}
+
+// Ordered list of sources this switcher cycles through.
+// Each entry: { id, alias, icon, url }. Local (if enabled) is always first.
+export function buildHostCycle(s) {
+  const list = [];
+  if (s.includeLocal) list.push({ id: 'local', alias: s.localAlias, icon: s.localIcon, url: '' });
+  for (const h of s.hosts) list.push({ id: 'r:' + h.url, alias: h.alias || h.url, icon: h.icon, url: h.url });
+  return list;
+}

@@ -14,10 +14,15 @@ Task-Manager-style SVG across the block and crops it per key via the SVG
 **matrix (e.g. 3×3)** — keys sharing a metric join into one graph that grows
 wider AND taller. Use one block for CPU and another for Memory to show both.
 
+**Remote hosts (v1.3):** monitor other machines too. Run the tiny zero-dependency
+[`sysmon-agent`](agent/) on any **Tailscale** host and add a **Host Switch** key —
+pressing it cycles the monitored host and switches the data source for every graph
+key on the deck. The key shows the host's alias and a Material Design icon you pick.
+
 The plugin itself lives in
 [`com.ulanzi.sysmonitor.ulanziPlugin/`](com.ulanzi.sysmonitor.ulanziPlugin/) —
 see its [README](com.ulanzi.sysmonitor.ulanziPlugin/README.md) for usage and
-settings.
+settings. The host agent lives in [`agent/`](agent/README.md).
 
 ## Install (Windows)
 

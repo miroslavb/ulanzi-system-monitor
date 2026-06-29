@@ -1,6 +1,6 @@
 {
   "name": "com.ulanzi.sysmonitor",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "private": true,
   "description": "Ulanzi Deck plugin: live CPU/RAM graphs (Windows 10 Task Manager style) tiled across keys.",
   "type": "module",
