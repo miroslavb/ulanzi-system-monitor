@@ -1,28 +1,27 @@
 // Main service for the System Monitor (Task-Manager-style) Ulanzi plugin.
 //
-// One process samples CPU + memory and repaints every placed key. Keys that share
-// a metric are joined into one rectangular block; a single graph is drawn at the
-// block size and cropped per key via viewBox (grows wide AND tall).
+// v1.2.0 — robust against the D200H quirks observed on hardware:
+//   * instances are keyed by the STABLE actionid, not the "col_row" key (which can
+//     flip/duplicate on this device — that flicker created duplicate instances);
+//   * each key's grid position is LOCKED on first sight (ignores later id flips);
+//   * each key renders INDEPENDENTLY (draws the whole grid graph, crops its own
+//     cell) — no cross-key grouping, so stale instances / duplicate ids / pages
+//     can't blank or scramble the graph.
 
 import { UlanziApi } from './common-node/index.js';
 import Sampler from './monitor/Sampler.js';
 import { buildInner, keyDataUri, buildDiagnostic } from './monitor/render.js';
-import { computeBlocks, parseKey, resolveMetric } from './monitor/layout.js';
-import { readSettings, DEFAULT_MS } from './monitor/settings.js';
+import { parseKey } from './monitor/layout.js';
+import { readSettings, resolveCell, DEFAULT_MS } from './monitor/settings.js';
 
 const PLUGIN_UUID = 'com.ulanzi.ulanzistudio.sysmonitor';
 const MIN_MS = 250, MAX_MS = 2000;
 
-// DIAGNOSTIC build: print what the device reports on each key so we can learn the
-// real key-id scheme. Set to false for normal operation.
-const DIAGNOSTIC = true;
-
 const $UD = new UlanziApi();
 const sampler = new Sampler();
-const INSTANCES = {};            // context -> { context, col, row, active, metric, theme, showText, refresh }
+const INSTANCES = {};            // actionid -> { id, context, keyCol, keyRow, active, ...settings }
 let refreshMs = DEFAULT_MS;
 let timer = null;
-let fallbackCol = 0;             // used only if the host key id isn't "col_row"
 
 $UD.connect(PLUGIN_UUID);
 $UD.onConnected(() => {
@@ -30,21 +29,20 @@ $UD.onConnected(() => {
   startTimer();
 });
 
-// Resolve a key's grid position. Host uses "col_row"; unknown schemes tile L→R.
-function positionFor(key) {
-  if (/^\d+_\d+$/.test(String(key))) return parseKey(key);
-  return { col: fallbackCol++, row: 0 };
+function idOf(ctx) {
+  const dec = $UD.decodeContext(ctx);
+  return { id: dec.actionid || ctx, key: dec.key };
 }
 
 function upsert(jsn) {
-  const ctx = jsn.context;
-  if (!INSTANCES[ctx]) {
-    const dec = $UD.decodeContext(ctx);
-    const { col, row } = positionFor(dec.key);
-    $UD.logMessage(`add key="${dec.key}" actionid="${dec.actionid}" -> col=${col} row=${row}`, 'debug');
-    INSTANCES[ctx] = { context: ctx, col, row, active: true, rawKey: dec.key, actionid: dec.actionid };
+  const { id, key } = idOf(jsn.context);
+  if (!INSTANCES[id]) {
+    const { col, row } = parseKey(key);                 // position LOCKED on first sight
+    $UD.logMessage(`add actionid="${id}" key="${key}" -> col=${col} row=${row}`, 'debug');
+    INSTANCES[id] = { id, context: jsn.context, keyCol: col, keyRow: row, active: true };
   }
-  Object.assign(INSTANCES[ctx], readSettings(jsn.param));
+  INSTANCES[id].context = jsn.context;                  // keep the freshest context for painting
+  Object.assign(INSTANCES[id], readSettings(jsn.param));
   recomputeRefresh();
   paint();
 }
@@ -54,13 +52,13 @@ $UD.onParamFromPlugin((jsn) => upsert(jsn));
 $UD.onParamFromApp((jsn) => upsert(jsn));
 
 $UD.onSetActive((jsn) => {
-  const inst = INSTANCES[jsn.context];
+  const inst = INSTANCES[idOf(jsn.context).id];
   if (inst) inst.active = !!jsn.active;
 });
 
 $UD.onClear((jsn) => {
   if (!jsn.param) return;
-  for (const item of jsn.param) delete INSTANCES[item.context];
+  for (const item of jsn.param) delete INSTANCES[idOf(item.context).id];
 });
 
 // --- sampling + painting -----------------------------------------------------
@@ -81,48 +79,30 @@ function tick() {
   paint();
 }
 
+// Each key paints itself: full grid graph cropped to its own cell. No grouping.
 function paint() {
-  if (DIAGNOSTIC) return paintDiagnostic();
-  const blocks = computeBlocks(Object.values(INSTANCES));
-  for (const b of blocks) {
-    if (!b.keys.length) continue;
-    const first = INSTANCES[b.keys[0].context];
-    const history = b.metric === 'mem' ? sampler.mem : sampler.cpu;
-    const value = b.metric === 'mem' ? sampler.lastMem.pct : sampler.lastCpu;
-    const inner = buildInner({
-      metric: b.metric,
-      history,
-      cols: b.cols,
-      rows: b.rows,
-      theme: first.theme,
-      showText: first.showText,
-      value,
-      sub: sampler.subFor(b.metric),
-    });
-    for (const k of b.keys) {
-      $UD.setBaseDataIcon(k.context, keyDataUri(inner, k.colIndex, k.rowIndex, b.cols, b.rows), '');
-    }
-  }
-}
-
-// Diagnostic: each key shows its own mini-graph + what the device reported.
-function paintDiagnostic() {
-  const insts = Object.values(INSTANCES);
-  for (const inst of insts) {
-    const metric = resolveMetric(inst.metric);
+  for (const inst of Object.values(INSTANCES)) {
+    if (inst.active === false) continue;
+    const metric = inst.metric === 'mem' ? 'mem' : 'cpu';
     const history = metric === 'mem' ? sampler.mem : sampler.cpu;
     const value = metric === 'mem' ? sampler.lastMem.pct : sampler.lastCpu;
-    const uri = buildDiagnostic({
-      metric, history, value, theme: inst.theme || 'dark',
-      lines: [
-        `K:${inst.rawKey}`,
-        `aid:${String(inst.actionid || '').slice(-4)}`,
-        `c${inst.col} r${inst.row}`,
-        `m:${metric[0]} t:${inst.showText ? 1 : 0} ${(inst.theme || 'd')[0]}`,
-        `N:${insts.length}`,
-      ],
+    const colIndex = resolveCell(inst.cellCol, inst.keyCol, inst.cols);
+    const rowIndex = resolveCell(inst.cellRow, inst.keyRow, inst.rows);
+
+    if (inst.diag) {
+      $UD.setBaseDataIcon(inst.context, buildDiagnostic({
+        metric, history, value, theme: inst.theme,
+        lines: [`id:${String(inst.id).slice(-4)}`, `k:${inst.keyCol},${inst.keyRow}`,
+                `grid ${inst.cols}x${inst.rows}`, `cell ${colIndex},${rowIndex}`, `m:${metric[0]} t:${inst.showText ? 1 : 0}`],
+      }), '');
+      continue;
+    }
+
+    const inner = buildInner({
+      metric, history, cols: inst.cols, rows: inst.rows,
+      theme: inst.theme, showText: inst.showText, value, sub: sampler.subFor(metric),
     });
-    $UD.setBaseDataIcon(inst.context, uri, '');
+    $UD.setBaseDataIcon(inst.context, keyDataUri(inner, colIndex, rowIndex, inst.cols, inst.rows), '');
   }
 }
 

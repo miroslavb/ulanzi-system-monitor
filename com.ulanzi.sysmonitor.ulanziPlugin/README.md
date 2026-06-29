@@ -11,40 +11,49 @@ this plugin makes a "wide screen" by **tiling one graph across a block of keys**
 
 ## Layout — how to combine keys
 
-Place **System Monitor** on a **block of keys** — any rectangle:
+Each key **draws the whole graph and shows only its own cell**, so keys never
+interfere (this is robust even though the D200H can report unstable/duplicate key
+ids). To make **one big graph across several keys**:
 
-- a **row** → a wide graph;
-- a **column** → a tall graph;
-- a **matrix** (e.g. **3×3**) → one big graph that's both wide and tall.
+1. Decide the grid, e.g. **3 columns × 3 rows** for a 3×3.
+2. On **every** key of that graph set the **same Columns, Rows and Metric**.
+3. Give each key its position with **This column** / **This row** (0-based,
+   top-left = `0,0`). Leave them **empty for auto** (uses the key's own position —
+   works when the device's key ids are stable; set them manually if a key shows
+   the wrong part).
 
-All keys that share the same **Metric** are joined into **one** graph spanning
-their bounding box, and each key shows its slice (the line is continuous across
-the whole block). The more keys, the bigger the graph.
-
-To show **both** CPU and RAM, make **two blocks**: set one block's keys to
-**CPU** and the other block's keys to **Memory** (e.g. CPU on the top rows, RAM
-on the bottom rows). Use the same settings on every key of a block.
+- A single key with **Columns = Rows = 1** is just a full graph.
+- A **row** (Columns = N, Rows = 1) → wide graph; a **column** → tall graph;
+  a **matrix** (e.g. 3×3) → big graph, wide *and* tall.
+- For **both** metrics, use two groups: one set of keys on **CPU**, another on
+  **Memory**.
 
 ## Settings (Property Inspector)
 
-- **Metric** — `CPU` (default) or `Memory`. Same metric = same block.
+- **Metric** — `CPU` (default) or `Memory`.
+- **Columns / Rows** — the grid size (1–8). Same on every key of a graph.
+- **This column / This row** — this key's cell (0-based). Empty = auto.
 - **Refresh** — `0.5s` (default) / `1s` / `2s`.
 - **Theme** — `Dark` (default) or `Light`.
 - **Show labels** — small top-left chip with the metric + current %, a sub-label
-  (cores / used·total GB) and the 100%/0 axis. Turn it **off** for a clean graph
-  with no text.
+  (cores / used·total GB) and the 100%/0 axis. Turn it **off** for a clean graph.
+- **Diagnostics** — overlay this key's id / cell / settings (for troubleshooting).
 
 ## How it works
 
 - Node main service (official UlanziDeck SDK). One process samples CPU
   (`os.cpus()` idle/total deltas) and memory (`os.totalmem`/`freemem`) every
   refresh tick and repaints each placed key.
-- Keys are grouped into **blocks** by metric using their `col_row` id (the
-  bounding box of all keys sharing a metric). For each block a single **SVG**
-  graph is built at the block size (Win10 colours: CPU cyan `#17a2d6`, Memory
-  violet `#c56fe6`, grid + area fill + value), then cropped per key via the SVG
-  `viewBox` (`col×CELL row×CELL`) so the line is continuous across the whole
-  matrix. Pure SVG — **no native dependencies** (only `ws`, bundled).
+- Every placed key renders **independently**: it builds the full grid graph
+  (Win10 colours: CPU cyan `#17a2d6`, Memory violet `#c56fe6`, grid + area fill +
+  value chip) and crops its own cell via the SVG `viewBox` (`col×CELL row×CELL`).
+  Keys of one graph share the same settings + the same sampler tick, so the line
+  is continuous across the matrix — with **no cross-key grouping**, which makes it
+  immune to the device's unstable/duplicate key ids and stale instances. Pure SVG,
+  **no native dependencies** (only `ws`, bundled).
+- Instances are keyed by the stable **`actionid`** and their grid position is
+  **locked on first sight**, so a flickering/duplicated `col_row` can't create
+  ghost tiles.
 
 ## Requirements
 
@@ -81,8 +90,8 @@ com.ulanzi.sysmonitor.ulanziPlugin/
     └── monitor/
         ├── Sampler.js       CPU + memory sampling, rolling history
         ├── render.js        Win10-Task-Manager SVG graph + viewBox slicing
-        ├── layout.js        group keys into blocks (bounding box per metric)
-        └── settings.js      normalise PI settings (incl. labels toggle)
+        ├── layout.js        key-id parsing (best-effort default cell)
+        └── settings.js      normalise PI settings (grid, cells, labels toggle)
 ```
 
 Built with the [UlanziDeck Plugin SDK](https://github.com/UlanziTechnology/UlanziDeckPlugin-SDK). Apache-2.0.

@@ -10,6 +10,7 @@
     .uspi-item-label { width: 116px; }
     .hint { padding: 6px 12px 10px; color: #9aa0a6; font-size: 11px; line-height: 1.5; }
     .hint b { color: #cfcfcf; }
+    input[type="number"].uspi-item-value { max-width: 80px; }
   </style>
 </head>
 <body>
@@ -24,6 +25,27 @@
         </select>
       </div>
 
+      <div class="uspi-heading" data-localize="Grid">Grid (set the same on every key of one graph)</div>
+
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Columns">Columns</div>
+        <input class="uspi-item-value" type="number" name="cols" id="cols" min="1" max="8" value="1">
+      </div>
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Rows">Rows</div>
+        <input class="uspi-item-value" type="number" name="rows" id="rows" min="1" max="8" value="1">
+      </div>
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="This column">This column</div>
+        <input class="uspi-item-value" type="number" name="cellCol" id="cellCol" min="0" max="7" placeholder="auto">
+      </div>
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="This row">This row</div>
+        <input class="uspi-item-value" type="number" name="cellRow" id="cellRow" min="0" max="7" placeholder="auto">
+      </div>
+
+      <div class="uspi-heading" data-localize="Display">Display</div>
+
       <div class="uspi-item">
         <div class="uspi-item-label" data-localize="Refresh">Refresh</div>
         <select class="uspi-item-value select" name="refresh" id="refresh">
@@ -32,7 +54,6 @@
           <option value="2000" data-localize="2 sec">2 sec</option>
         </select>
       </div>
-
       <div class="uspi-item">
         <div class="uspi-item-label" data-localize="Theme">Theme</div>
         <select class="uspi-item-value select" name="theme" id="theme">
@@ -40,7 +61,6 @@
           <option value="light" data-localize="Light">Light</option>
         </select>
       </div>
-
       <div class="uspi-item">
         <div class="uspi-item-label" data-localize="Show labels">Show labels</div>
         <div class="uspi-item-value">
@@ -50,13 +70,23 @@
           </div>
         </div>
       </div>
+      <div class="uspi-item">
+        <div class="uspi-item-label" data-localize="Diagnostics">Diagnostics</div>
+        <div class="uspi-item-value">
+          <div class="uspi-item-child" style="margin-top:-1px;">
+            <input id="diag" name="diag" type="checkbox" value="on">
+            <label for="diag" class="uspi-item-label"><span></span></label>
+          </div>
+        </div>
+      </div>
 
       <div class="hint" data-localize="SysmonHint">
-        Place this action on a <b>block of keys</b> — any rectangle: a row, a column,
-        or e.g. 3×3. All keys with the <b>same Metric</b> join into ONE graph that
-        grows wider AND taller as you add keys. To show both at once, set one block
-        to <b>CPU</b> and another block to <b>Memory</b>. Use the same settings on
-        every key of a block.
+        Each key draws the whole graph and shows its own cell, so keys never
+        interfere. For ONE graph across several keys, set the <b>same Columns, Rows
+        and Metric</b> on every key of it, and give each key its <b>This column</b> /
+        <b>This row</b> (0-based, top-left = 0,0). Leave them empty for <b>auto</b>
+        (use the key's own position). A single key with Columns=Rows=1 just shows a
+        full graph. Use one block for CPU and another for Memory.
       </div>
 
     </form>

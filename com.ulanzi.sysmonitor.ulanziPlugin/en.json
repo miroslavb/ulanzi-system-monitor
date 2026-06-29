@@ -1,13 +1,19 @@
 {
   "Name": "System Monitor",
-  "Description": "Live CPU & memory graphs (Windows 10 Task Manager style) across a row of keys.",
+  "Description": "Live CPU & memory graphs (Windows 10 Task Manager style) across your deck keys.",
   "Actions": [
-    { "Name": "System Monitor", "Tooltip": "Live CPU/RAM graph — place across a row of keys" }
+    { "Name": "System Monitor", "Tooltip": "Live CPU/RAM graph — place on a block of keys" }
   ],
   "Localization": {
     "Metric": "Metric",
     "CPU": "CPU",
     "Memory": "Memory",
+    "Grid": "Grid (same on every key of one graph)",
+    "Columns": "Columns",
+    "Rows": "Rows",
+    "This column": "This column",
+    "This row": "This row",
+    "Display": "Display",
     "Refresh": "Refresh",
     "0.5 sec": "0.5 sec",
     "1 sec": "1 sec",
@@ -16,6 +22,7 @@
     "Dark": "Dark",
     "Light": "Light",
     "Show labels": "Show labels",
-    "SysmonHint": "Place this action on a block of keys — any rectangle: a row, a column, or e.g. 3×3. All keys with the same Metric join into ONE graph that grows wider AND taller as you add keys. To show both at once, set one block to CPU and another block to Memory. Use the same settings on every key of a block."
+    "Diagnostics": "Diagnostics",
+    "SysmonHint": "Each key draws the whole graph and shows its own cell, so keys never interfere. For ONE graph across several keys, set the same Columns, Rows and Metric on every key of it, and give each key its This column / This row (0-based, top-left = 0,0). Leave them empty for auto (use the key's own position). A single key with Columns=Rows=1 just shows a full graph. Use one block for CPU and another for Memory."
   }
 }
