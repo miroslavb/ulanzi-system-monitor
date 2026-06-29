@@ -71,9 +71,11 @@ test('showText:false draws NO text (toggle/overlap fix)', () => {
   assert.ok(on.includes('<text') && on.includes('37%') && on.includes('CPU'));
 });
 
-test('keyDataUri crops a 3×3 graph to the (col,row) tile', () => {
+test('keyDataUri crops via translate inside a 0,0 viewBox (device-safe)', () => {
   const inner = buildInner({ metric: 'cpu', history: [1, 2, 3], cols: 3, rows: 3, theme: 'dark', showText: false, value: 3 });
-  assert.ok(decode(keyDataUri(inner, 1, 2, 3, 3)).includes(`viewBox="${1 * CELL} ${2 * CELL} ${CELL} ${CELL}"`));
+  const svg = decode(keyDataUri(inner, 1, 2, 3, 3));
+  assert.ok(svg.includes(`viewBox="0 0 ${CELL} ${CELL}"`), 'zero-origin viewBox');
+  assert.ok(svg.includes(`translate(${-1 * CELL},${-2 * CELL})`), 'cell shifted to origin via transform');
 });
 
 test('a full 3×3 reassembles from its 9 independent crops (continuity)', () => {
@@ -81,10 +83,11 @@ test('a full 3×3 reassembles from its 9 independent crops (continuity)', () => 
   const seen = new Set();
   for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
     const svg = decode(keyDataUri(inner, c, r, 3, 3));
-    assert.ok(svg.includes(`viewBox="${c * CELL} ${r * CELL} ${CELL} ${CELL}"`));
+    assert.ok(svg.includes(`viewBox="0 0 ${CELL} ${CELL}"`));
+    assert.ok(svg.includes(`translate(${-c * CELL},${-r * CELL})`));
     seen.add(`${c},${r}`);
   }
-  assert.strictEqual(seen.size, 9);   // all nine distinct cells of one shared graph
+  assert.strictEqual(seen.size, 9);
 });
 
 console.log('sampler:');

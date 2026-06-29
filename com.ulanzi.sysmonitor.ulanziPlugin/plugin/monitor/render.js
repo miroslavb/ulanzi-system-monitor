@@ -109,9 +109,18 @@ export function buildDiagnostic({ metric, history, value, theme, lines }) {
   return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
 }
 
-/** Crop the block's inner markup to one key (col,row) and base64-encode it. */
+/**
+ * Crop the grid graph to one key (col,row) and base64-encode it.
+ *
+ * IMPORTANT: we do NOT use a viewBox offset to crop. The D200H's SVG renderer
+ * ignores a non-zero viewBox origin (every tile then shows the same top-left
+ * region → nothing tiles). Instead we keep viewBox="0 0 CELL CELL" — the form the
+ * device renders correctly — and translate the full graph so this key's cell lands
+ * at the origin; the 100×100 viewport clips the rest.
+ */
 export function keyDataUri(inner, colIndex, rowIndex, cols, rows) {
-  const vb = `${colIndex * CELL} ${rowIndex * CELL} ${CELL} ${CELL}`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}" viewBox="${vb}">${inner}</svg>`;
+  const tx = -colIndex * CELL, ty = -rowIndex * CELL;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}" ` +
+    `viewBox="0 0 ${CELL} ${CELL}"><g transform="translate(${tx},${ty})">${inner}</g></svg>`;
   return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
 }
