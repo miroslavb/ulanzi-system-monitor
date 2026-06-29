@@ -3,7 +3,7 @@
   "Name": "System Monitor",
   "Description": "Live CPU & memory graphs in the style of the Windows 10 Task Manager, drawn across your deck keys. Place this action on a block of keys (a row, a column, or e.g. 3x3) — keys with the same metric join into one graph that grows wider AND taller. Set one block to CPU and another to Memory to show both.",
   "Icon": "assets/icons/pluginIcon.png",
-  "Version": "1.1.0",
+  "Version": "1.1.1",
   "Category": "System Monitor",
   "CategoryIcon": "assets/icons/categoryIcon.png",
   "CodePath": "plugin/app.js",

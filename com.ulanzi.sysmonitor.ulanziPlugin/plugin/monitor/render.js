@@ -95,6 +95,23 @@ export function buildInner(o) {
          text;
 }
 
+/**
+ * Diagnostic tile: a 1×1 graph with an overlay of what the device reported for
+ * this key (raw key id, decoded col/row, received settings, instance count).
+ * Used to discover the real key-id scheme on hardware. `lines` = string[].
+ */
+export function buildDiagnostic({ metric, history, value, theme, lines }) {
+  const t = THEMES[theme] || THEMES.dark;
+  const inner = buildInner({ metric, history, cols: 1, rows: 1, theme, showText: false, value });
+  let txt = `<rect x="0" y="0" width="${CELL}" height="${CELL}" fill="rgba(0,0,0,0.5)"/>`;
+  (lines || []).forEach((l, i) => {
+    txt += `<text x="6" y="${15 + i * 17}" ${FAM} font-size="11" font-weight="600" ` +
+           `fill="#ffffff">${esc(l)}</text>`;
+  });
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL}" height="${CELL}" viewBox="0 0 ${CELL} ${CELL}">${inner}${txt}</svg>`;
+  return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
+}
+
 /** Crop the block's inner markup to one key (col,row) and base64-encode it. */
 export function keyDataUri(inner, colIndex, rowIndex, cols, rows) {
   const vb = `${colIndex * CELL} ${rowIndex * CELL} ${CELL} ${CELL}`;
