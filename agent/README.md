@@ -8,6 +8,13 @@ the **Host Switch** key cycles between hosts.
 It samples CPU + memory with Node's built-in `os` module (Linux / macOS /
 Windows), so it works anywhere Node ≥ 14 runs. No npm install, no dependencies.
 
+> **No Node on the host?** Use the **Python** agent
+> [`sysmon-agent.py`](sysmon-agent.py) instead — Linux-only (reads `/proc`),
+> stdlib-only (no pip), serves the *same* JSON contract. python3 is preinstalled
+> on virtually every Linux box, so this is the easiest option for a fleet. Run it
+> exactly like the Node one (`python3 sysmon-agent.py`), same env vars, same
+> systemd unit (just point `ExecStart` at `python3 …/sysmon-agent.py`).
+
 ## Run it
 
 ```bash
