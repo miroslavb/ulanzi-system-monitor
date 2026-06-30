@@ -62,6 +62,13 @@ Add a **Host Switch** action to one key to monitor remote machines:
    source for **all** graph keys on the deck, and the switch key shows that host's
    alias + icon (with an accent ring; a red dot if the host is unreachable).
 
+The switch key also shows the current host's **CPU temperature** as small digits in
+the top-right corner where the host reports it (grey, amber ≥70 °C, red ≥80 °C).
+
+Hosts that can't run the agent (Home Assistant OS — immutable; a NAS that only
+reports through HA) can be bridged with the [`ha-adapter`](../agent/README.md),
+which reads HA's own system sensors and re-serves them in the agent format.
+
 The plugin polls the agents over HTTP from its Node process (no browser, so no
 CORS) and keeps a rolling history per source, just like the local graph.
 
