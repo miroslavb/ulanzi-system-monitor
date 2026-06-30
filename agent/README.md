@@ -44,6 +44,27 @@ The agent only ever **reads** CPU/RAM and serves them read-only. Keep it on the
 tailnet: rely on Tailscale ACLs, bind to the Tailscale IP (`SYSMON_AGENT_BIND`),
 and/or set `SYSMON_AGENT_TOKEN`. Do not expose it to the public internet.
 
+## Hosts that can't run an agent — `ha-adapter.py`
+
+Some hosts can't run the agent at all: **Home Assistant OS** is immutable (no
+systemd for custom units), and some boxes only expose metrics *through* HA (e.g. a
+Synology NAS via the Synology/SNMP integration). For those, run
+[`ha-adapter.py`](ha-adapter.py) wherever it has HA API access — it polls Home
+Assistant's own **System Monitor** sensors (`sensor.processor_use_percent`,
+`sensor.memory_use_percent`, …) and re-serves them in the agent JSON contract, so
+the plugin treats HA like any other host.
+
+```bash
+HASS_URL=http://<ha-ip>:8123 HASS_TOKEN=<long-lived-token> python3 ha-adapter.py
+```
+
+Then add hosts in the switcher pointing at the adapter (default port 9889):
+`http://<adapter-host>:9889/metrics` (HA itself) and
+`http://<adapter-host>:9889/metrics?host=nas01` (the NAS). The `HOSTS` map at the
+top of the file maps each host key to its HA sensor entity ids — adjust if yours
+differ. Env: `HA_ADAPTER_PORT` (9889), `HA_ADAPTER_BIND`, `HA_ADAPTER_POLL` (4s),
+`HASS_URL`, `HASS_TOKEN`, optional `HA_ADAPTER_TOKEN`.
+
 ## Run as a service (systemd, Linux)
 
 ```bash
