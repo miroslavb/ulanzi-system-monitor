@@ -33,6 +33,7 @@ export default class RemoteSampler {
     this.cpu = [];
     this.mem = [];
     this.cores = 0;
+    this.temp = null;           // CPU temp °C, when the agent reports it
     this.lastCpu = 0;
     this.lastMem = { pct: 0, usedGB: 0, totalGB: 0 };
     this.ok = false;            // last fetch reachable?
@@ -108,6 +109,7 @@ export default class RemoteSampler {
         totalGB: Number(d.mem && d.mem.totalGB) || 0,
       };
       this.cores = Number(d.cores) || this.cores;
+      this.temp = (typeof d.temp === 'number' && isFinite(d.temp)) ? d.temp : null;
       this.remoteHost = d.host || this.remoteHost;
       this.ok = true;
       this.lastError = null;

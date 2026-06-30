@@ -46,6 +46,7 @@ HOSTS = {
         "cpu": "sensor.processor_use_percent",
         "mem_pct": "sensor.memory_use_percent",
         "mem_free": ("sensor.memory_free", MiB),       # (entity, bytes-per-unit)
+        "temp": "sensor.processor_temperature",
     },
     "nas01": {
         "name": "nas-01",
@@ -53,6 +54,7 @@ HOSTS = {
         "mem_pct": "sensor.nas_01_memory_usage_real",
         "mem_total": ("sensor.nas_01_memory_total_real", 1000 * 1000),
         "mem_avail": ("sensor.nas_01_memory_available_real", 1000 * 1000),
+        "temp": "sensor.nas_01_volume_1_average_disk_temp",   # disk temp (no CPU-temp sensor exposed)
     },
 }
 
@@ -113,12 +115,14 @@ def _snapshot(host_key):
             free_b = free * cfg["mem_free"][1]
             total = free_b / (1 - pct / 100.0)
             total_gb = round(total / GB, 2); used_gb = round((total - free_b) / GB, 2)
+    temp = st.get(cfg["temp"]) if "temp" in cfg else None
     return {
         "host": cfg["name"],
         "platform": "homeassistant",
         "cpu": round(cpu, 1) if cpu is not None else 0.0,
         "mem": {"pct": round(pct, 1) if pct is not None else 0.0, "usedGB": used_gb, "totalGB": total_gb},
         "cores": 0,                       # HA does not expose a core count
+        "temp": round(temp) if temp is not None else None,
         "ok": ok and cpu is not None,
         "ts": int(time.time() * 1000),
     }

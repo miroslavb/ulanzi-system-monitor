@@ -5,6 +5,17 @@ All notable changes to the **System Monitor** Ulanzi Deck plugin.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-06-30
+
+### Added
+- **CPU temperature on the Host Switch key.** Where the data source reports it, the
+  switch tile shows the host's temperature as small digits in the top-right corner
+  (grey, amber at ≥70°C, red at ≥80°C). Agents read it from Linux thermal zones
+  (`/sys/class/thermal`; Pi / Intel `x86_pkg_temp` / AMD `k10temp`, hwmon fallback;
+  `null` on hosts with no sensor, e.g. VMs / `edge`). The HA-adapter maps it from HA
+  sensors (`processor_temperature`; the NAS uses its disk-temp sensor). The local
+  "This PC" source reports temp on Linux only (null on Windows/macOS).
+
 ## [1.3.2] - 2026-06-30
 
 ### Fixed

@@ -191,9 +191,13 @@ function paintSwitch(s) {
   const active = sel.id === currentSourceId;
   const src = sources[sel.id];
   const offline = active && sel.id !== 'local' && src && src.ok === false;
+  // Temperature is only meaningful for a source we actually sample (the active
+  // remote, or local which is sampled every tick) and only when reachable.
+  const temp = (src && (sel.id === 'local' || active) && src.ok !== false && typeof src.temp === 'number')
+    ? src.temp : null;
   const iconPath = MDI_LITE[sel.icon] || MDI_LITE.server || '';
   $UD.setBaseDataIcon(s.context, switchKeyDataUri({
-    alias: sel.alias, iconPath, theme: s.theme, active, offline,
+    alias: sel.alias, iconPath, theme: s.theme, active, offline, temp,
   }), '');
 }
 

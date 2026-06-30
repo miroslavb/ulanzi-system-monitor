@@ -35,7 +35,8 @@ Then in the plugin's **Host Switch** key settings, add the host with address
 
 ## Endpoints
 
-- `GET /metrics` (or `GET /`) → `{ host, platform, cpu, mem:{pct,usedGB,totalGB}, cores, uptime, ts }`
+- `GET /metrics` (or `GET /`) → `{ host, platform, cpu, mem:{pct,usedGB,totalGB}, cores, temp, uptime, ts }`
+  (`temp` = CPU °C from Linux thermal zones, or `null` where no sensor is exposed)
 - `GET /healthz` → `ok`
 
 ## Security

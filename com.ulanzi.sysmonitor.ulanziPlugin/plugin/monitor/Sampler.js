@@ -2,10 +2,32 @@
 // Pure Node `os` module: works on Windows and macOS, no native dependencies.
 
 import os from 'os';
+import fs from 'fs';
 import { HISTORY } from './render.js';
 
 const clamp = (v) => Math.max(0, Math.min(100, v));
 const GB = 1024 * 1024 * 1024;
+
+// CPU temperature in whole °C (Linux /sys), or null where unavailable (Windows/mac
+// — the usual "This PC" host — and VMs).
+const TEMP_PRI = ['x86_pkg_temp', 'cpu-thermal', 'cpu_thermal', 'coretemp', 'k10temp', 'soc_thermal', 'soc', 'acpitz'];
+function readTemp() {
+  if (os.platform() !== 'linux') return null;
+  const zones = {};
+  let dirs = [];
+  try { dirs = fs.readdirSync('/sys/class/thermal'); } catch (e) { return null; }
+  for (const d of dirs) {
+    if (!d.startsWith('thermal_zone')) continue;
+    try {
+      const t = fs.readFileSync(`/sys/class/thermal/${d}/type`, 'utf8').trim();
+      const v = parseInt(fs.readFileSync(`/sys/class/thermal/${d}/temp`, 'utf8').trim(), 10);
+      if (v > 0 && v < 200000 && zones[t] == null) zones[t] = v;
+    } catch (e) { /* ignore */ }
+  }
+  for (const p of TEMP_PRI) if (zones[p] != null) return Math.round(zones[p] / 1000);
+  const vals = Object.values(zones);
+  return vals.length ? Math.round(Math.max(...vals) / 1000) : null;
+}
 
 export default class Sampler {
   constructor(maxHistory = HISTORY) {
@@ -13,6 +35,7 @@ export default class Sampler {
     this.cpu = [];           // %, oldest..newest
     this.mem = [];           // %, oldest..newest
     this.cores = os.cpus().length;
+    this.temp = readTemp();
     this._prev = this._cpuTimes();
     this.lastCpu = 0;
     this.lastMem = { pct: 0, usedGB: 0, totalGB: os.totalmem() / GB };
@@ -48,6 +71,7 @@ export default class Sampler {
 
     this.lastCpu = cpuPct;
     this.lastMem = { pct: memPct, usedGB: used / GB, totalGB: total / GB };
+    this.temp = readTemp();
     return { cpu: cpuPct, mem: memPct };
   }
 

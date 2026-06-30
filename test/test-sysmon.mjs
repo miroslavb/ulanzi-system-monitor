@@ -152,6 +152,17 @@ test('switchKeyDataUri: embeds icon path + alias; active draws accent ring', () 
   assert.ok(off.includes('#e2504a'), 'offline dot');
 });
 
+test('switchKeyDataUri: temperature digits top-right; offline hides temp', () => {
+  const warm = decode(switchKeyDataUri({ alias: 'NUC', iconPath: MDI_LITE.server, temp: 47 }));
+  assert.ok(warm.includes('47°'), 'shows temperature');
+  const hot = decode(switchKeyDataUri({ alias: 'hive', iconPath: MDI_LITE.server, temp: 82 }));
+  assert.ok(hot.includes('82°') && hot.includes('#e2504a'), 'hot temp shown in red');
+  const none = decode(switchKeyDataUri({ alias: 'NUC', iconPath: MDI_LITE.server }));
+  assert.ok(!none.includes('°'), 'no temp text when unavailable');
+  const off = decode(switchKeyDataUri({ alias: 'NUC', iconPath: MDI_LITE.server, offline: true, temp: 47 }));
+  assert.ok(!off.includes('47°'), 'offline takes precedence over temp');
+});
+
 test('curated MDI set: present, has expected host icons, light bundle', () => {
   const keys = Object.keys(MDI_LITE);
   assert.ok(keys.length > 40 && keys.length < 200, `curated, not the full bundle (${keys.length})`);

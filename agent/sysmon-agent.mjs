@@ -23,6 +23,27 @@
 
 import http from 'http';
 import os from 'os';
+import fs from 'fs';
+
+// Preferred CPU thermal-zone types, best first. Linux only; null elsewhere.
+const TEMP_PRI = ['x86_pkg_temp', 'cpu-thermal', 'cpu_thermal', 'coretemp', 'k10temp', 'soc_thermal', 'soc', 'acpitz'];
+function readTemp() {
+  if (os.platform() !== 'linux') return null;
+  const zones = {};
+  let dirs = [];
+  try { dirs = fs.readdirSync('/sys/class/thermal'); } catch (e) { dirs = []; }
+  for (const d of dirs) {
+    if (!d.startsWith('thermal_zone')) continue;
+    try {
+      const t = fs.readFileSync(`/sys/class/thermal/${d}/type`, 'utf8').trim();
+      const v = parseInt(fs.readFileSync(`/sys/class/thermal/${d}/temp`, 'utf8').trim(), 10);
+      if (v > 0 && v < 200000 && zones[t] == null) zones[t] = v;
+    } catch (e) { /* ignore */ }
+  }
+  for (const p of TEMP_PRI) if (zones[p] != null) return Math.round(zones[p] / 1000);
+  const vals = Object.values(zones);
+  return vals.length ? Math.round(Math.max(...vals) / 1000) : null;
+}
 
 const PORT = parseInt(process.env.SYSMON_AGENT_PORT || '9888', 10);
 const BIND = process.env.SYSMON_AGENT_BIND || '0.0.0.0';
@@ -67,6 +88,7 @@ function snapshot() {
       totalGB: Math.round((total / GB) * 100) / 100,
     },
     cores: (os.cpus() || []).length,
+    temp: readTemp(),
     uptime: Math.round(os.uptime()),
     ts: Date.now(),
   };

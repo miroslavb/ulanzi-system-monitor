@@ -11,9 +11,10 @@ Env:
   SYSMON_AGENT_TOKEN  optional shared secret (?token=.. or Authorization: Bearer ..)
 
 Endpoints:
-  GET /metrics (or /)  -> { host, platform, cpu, mem:{pct,usedGB,totalGB}, cores, uptime, ts }
+  GET /metrics (or /)  -> { host, platform, cpu, mem:{pct,usedGB,totalGB}, cores, temp, uptime, ts }
   GET /healthz         -> "ok"
 """
+import glob
 import json
 import os
 import socket
@@ -21,6 +22,37 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+
+# Preferred CPU thermal-zone types, best first (Pi: cpu-thermal; Intel: x86_pkg_temp
+# / coretemp; AMD: k10temp). acpitz is a last resort.
+_TEMP_PRI = ["x86_pkg_temp", "cpu-thermal", "cpu_thermal", "coretemp", "k10temp", "soc_thermal", "soc", "acpitz"]
+
+
+def _read_temp():
+    """CPU temperature in whole °C, or None where unavailable (e.g. VMs)."""
+    zones = {}
+    for z in glob.glob("/sys/class/thermal/thermal_zone*"):
+        try:
+            t = open(z + "/type").read().strip()
+            v = int(open(z + "/temp").read().strip())
+            if 0 < v < 200000:
+                zones.setdefault(t, v)
+        except Exception:
+            pass
+    for p in _TEMP_PRI:
+        if p in zones:
+            return round(zones[p] / 1000)
+    if zones:
+        return round(max(zones.values()) / 1000)
+    for h in glob.glob("/sys/class/hwmon/hwmon*"):   # x86 boxes that only expose hwmon
+        try:
+            if open(h + "/name").read().strip() in ("coretemp", "k10temp", "cpu_thermal", "cpu-thermal"):
+                v = int(open(h + "/temp1_input").read().strip())
+                if 0 < v < 200000:
+                    return round(v / 1000)
+        except Exception:
+            pass
+    return None
 
 PORT = int(os.environ.get("SYSMON_AGENT_PORT", "9888"))
 BIND = os.environ.get("SYSMON_AGENT_BIND", "0.0.0.0")
@@ -84,6 +116,7 @@ def _snapshot():
         "cpu": round(_last_cpu, 1),
         "mem": {"pct": pct, "usedGB": used_gb, "totalGB": total_gb},
         "cores": os.cpu_count() or 0,
+        "temp": _read_temp(),
         "uptime": _uptime(),
         "ts": int(time.time() * 1000),
     }

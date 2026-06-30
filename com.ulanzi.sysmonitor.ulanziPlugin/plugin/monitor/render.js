@@ -133,6 +133,7 @@ export function keyDataUri(inner, colIndex, rowIndex, cols, rows) {
  *   theme     'dark' | 'light'
  *   active    true if this host is the currently selected data source (accent ring)
  *   offline   true if the selected remote source is currently unreachable (red dot)
+ *   temp      CPU temperature °C (number) to show small in the top-right corner; optional
  */
 const ACCENT = '#17a2d6';
 function truncate(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
@@ -144,16 +145,25 @@ export function switchKeyDataUri(o) {
   const iconColor = active ? ACCENT : t.text;
 
   // MDI paths use a 24x24 viewBox — scale to a 46px box, centered near the top.
-  const size = 46, scale = size / 24, ix = (C - size) / 2, iy = 15;
+  const size = 46, scale = size / 24, ix = (C - size) / 2, iy = 18;
   const icon = o.iconPath
     ? `<g transform="translate(${ix},${iy}) scale(${scale})"><path d="${o.iconPath}" fill="${iconColor}"/></g>`
     : '';
 
-  const label = `<text x="${C / 2}" y="88" text-anchor="middle" ${FAM} font-size="15" font-weight="700" fill="${t.text}">${esc(truncate(o.alias, 11))}</text>`;
+  const label = `<text x="${C / 2}" y="90" text-anchor="middle" ${FAM} font-size="15" font-weight="700" fill="${t.text}">${esc(truncate(o.alias, 11))}</text>`;
   const ring = active ? `<rect x="2.5" y="2.5" width="${C - 5}" height="${C - 5}" rx="10" fill="none" stroke="${ACCENT}" stroke-width="3"/>` : '';
-  const off = o.offline ? `<circle cx="${C - 13}" cy="13" r="6" fill="#e2504a"/>` : '';
+
+  // Top-right corner: small temperature digits when available; otherwise an
+  // offline dot for the active-but-unreachable source.
+  let corner = '';
+  if (o.offline) {
+    corner = `<circle cx="${C - 13}" cy="13" r="6" fill="#e2504a"/>`;
+  } else if (typeof o.temp === 'number' && isFinite(o.temp)) {
+    const hot = o.temp >= 80 ? '#e2504a' : (o.temp >= 70 ? '#e0a23a' : t.sub);
+    corner = `<text x="${C - 4}" y="17" text-anchor="end" ${FAM} font-size="14" font-weight="700" fill="${hot}">${Math.round(o.temp)}°</text>`;
+  }
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${C}" height="${C}" viewBox="0 0 ${C} ${C}">` +
-    `<rect x="0" y="0" width="${C}" height="${C}" fill="${t.bg}"/>` + ring + icon + label + off + `</svg>`;
+    `<rect x="0" y="0" width="${C}" height="${C}" fill="${t.bg}"/>` + ring + icon + label + corner + `</svg>`;
   return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
 }
