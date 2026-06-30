@@ -5,6 +5,17 @@ All notable changes to the **System Monitor** Ulanzi Deck plugin.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.2] - 2026-06-30
+
+### Fixed
+- **Host Switch Property Inspector UI.** The Alias / Agent-address text fields
+  rendered white-on-white (invisible text) — all text inputs now use the dark
+  theme. The MDI icon picker was a viewport-anchored modal that, in the short PI
+  panel, opened only ~1.5 rows tall with the Close button overlapping the grid;
+  it is now an **inline, scrollable panel** (240px grid, search + Close in a
+  header, highlights the current icon) that uses the document's own scroll. Row
+  icon buttons are compact (glyph-only) so rows no longer overflow horizontally.
+
 ## [1.3.1] - 2026-06-30
 
 ### Fixed

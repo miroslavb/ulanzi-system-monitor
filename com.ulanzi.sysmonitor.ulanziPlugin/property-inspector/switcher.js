@@ -1,8 +1,7 @@
 // Property Inspector for the Host Switch action.
-// Builds a list of remote hosts (alias / agent URL / MDI icon) plus an optional
-// "this PC" local source, and an MDI icon picker backed by the curated mdi-lite
-// set (window.MDI_LITE). Settings are sent as a structured object so `hosts`
-// arrives at the main service as a real array.
+// A list of remote hosts (alias / agent URL / MDI icon) + an optional local
+// "this PC" source, with an inline MDI icon picker (window.MDI_LITE). Settings
+// are sent as a structured object so `hosts` arrives as a real array.
 
 const MDI = (typeof window !== 'undefined' && window.MDI_LITE) || {};
 
@@ -16,16 +15,22 @@ function iconSvg(name, px) {
   return `<svg viewBox="0 0 24 24" width="${px}" height="${px}"><path d="${d}"></path></svg>`;
 }
 
-function refreshIconBtn(btn, name) {
+function refreshIconBtn(btn, name, withName) {
   if (!btn) return;
-  btn.innerHTML = iconSvg(name, 18) + `<span style="font-size:11px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name || 'pick'}</span>`;
+  btn.title = name || 'pick icon';
+  btn.innerHTML = iconSvg(name, 18) + (withName ? `<span class="ibname">${name || 'pick'}</span>` : '');
+}
+
+function currentIcon(target) {
+  if (target === 'local') return state.localIcon;
+  if (typeof target === 'number' && state.hosts[target]) return state.hosts[target].icon;
+  return '';
 }
 
 // --- host rows ---------------------------------------------------------------
 function makeRow(host, i) {
   const row = document.createElement('div');
   row.className = 'hostrow';
-  row.dataset.i = i;
 
   const alias = document.createElement('input');
   alias.type = 'text'; alias.placeholder = 'alias'; alias.value = host.alias || '';
@@ -33,9 +38,9 @@ function makeRow(host, i) {
   url.type = 'text'; url.placeholder = 'http://100.x.y.z:9888'; url.value = host.url || '';
   const iconBtn = document.createElement('button');
   iconBtn.type = 'button'; iconBtn.className = 'iconbtn';
-  refreshIconBtn(iconBtn, host.icon || 'server');
+  refreshIconBtn(iconBtn, host.icon || 'server', false);   // glyph-only in rows
   const del = document.createElement('button');
-  del.type = 'button'; del.className = 'h-del'; del.textContent = '✕';
+  del.type = 'button'; del.className = 'h-del'; del.textContent = '✕'; del.title = 'Remove host';
 
   alias.addEventListener('input', () => { state.hosts[i].alias = alias.value; saveDebounced(); });
   url.addEventListener('input', () => { state.hosts[i].url = url.value; saveDebounced(); });
@@ -52,26 +57,34 @@ function renderHosts() {
   state.hosts.forEach((h, i) => list.appendChild(makeRow(h, i)));
 }
 
-// --- icon picker -------------------------------------------------------------
+// --- inline icon picker ------------------------------------------------------
 function openPicker(target) {
   pickerTarget = target;
+  const label = target === 'local'
+    ? (state.localAlias || 'this PC')
+    : ((state.hosts[target] && state.hosts[target].alias) || `host ${target + 1}`);
+  document.querySelector('#iconpanel-title').textContent = `Icon for: ${label}`;
   const search = document.querySelector('#iconsearch');
   search.value = '';
   buildGrid('');
-  document.querySelector('#iconmodal').classList.remove('hidden');
+  const panel = document.querySelector('#iconpanel');
+  panel.classList.remove('hidden');
+  panel.scrollIntoView({ block: 'nearest' });
   search.focus();
 }
 function closePicker() {
-  document.querySelector('#iconmodal').classList.add('hidden');
+  document.querySelector('#iconpanel').classList.add('hidden');
   pickerTarget = null;
 }
 function buildGrid(filter) {
   const grid = document.querySelector('#icongrid');
   grid.innerHTML = '';
   const f = (filter || '').toLowerCase().trim();
+  const sel = currentIcon(pickerTarget);
   Object.keys(MDI).filter((n) => !f || n.includes(f)).forEach((name) => {
     const cell = document.createElement('div');
-    cell.className = 'ic'; cell.title = name;
+    cell.className = 'ic' + (name === sel ? ' sel' : '');
+    cell.title = name;
     cell.innerHTML = iconSvg(name, 22);
     cell.addEventListener('click', () => chooseIcon(name));
     grid.appendChild(cell);
@@ -80,7 +93,7 @@ function buildGrid(filter) {
 function chooseIcon(name) {
   if (pickerTarget === 'local') {
     state.localIcon = name;
-    refreshIconBtn(document.querySelector('#localIconBtn'), name);
+    refreshIconBtn(document.querySelector('#localIconBtn'), name, true);
   } else if (typeof pickerTarget === 'number') {
     if (state.hosts[pickerTarget]) state.hosts[pickerTarget].icon = name;
     renderHosts();
@@ -126,7 +139,7 @@ function load(p) {
   document.querySelector('#includeLocal').checked = state.includeLocal;
   document.querySelector('#localAlias').value = state.localAlias;
   document.querySelector('#theme').value = state.theme;
-  refreshIconBtn(document.querySelector('#localIconBtn'), state.localIcon);
+  refreshIconBtn(document.querySelector('#localIconBtn'), state.localIcon, true);
   renderHosts();
 }
 
@@ -136,7 +149,7 @@ $UD.connect();
 $UD.onConnected(() => {
   document.querySelector('.uspi-wrapper').classList.remove('hidden');
 
-  refreshIconBtn(document.querySelector('#localIconBtn'), state.localIcon);
+  refreshIconBtn(document.querySelector('#localIconBtn'), state.localIcon, true);
   renderHosts();
 
   document.querySelector('#localIconBtn').addEventListener('click', () => openPicker('local'));
@@ -149,9 +162,6 @@ $UD.onConnected(() => {
   document.querySelector('#theme').addEventListener('change', saveNow);
   document.querySelector('#iconclose').addEventListener('click', closePicker);
   document.querySelector('#iconsearch').addEventListener('input', (e) => buildGrid(e.target.value));
-  document.querySelector('#iconmodal').addEventListener('click', (e) => {
-    if (e.target.id === 'iconmodal') closePicker();   // click backdrop to dismiss
-  });
 });
 
 $UD.onAdd((jsn) => { if (jsn && jsn.param) load(jsn.param); });
