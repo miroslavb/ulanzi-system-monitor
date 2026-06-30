@@ -5,6 +5,19 @@ All notable changes to the **System Monitor** Ulanzi Deck plugin.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-06-30
+
+### Fixed
+- **Temperature was implausibly spiky** (e.g. 40→60→71 on an idle NUC). CPU
+  *package* sensors jump 20–30° on brief micro-loads; the plugin now reports a
+  **median over a short rolling window** per source, rejecting single-sample
+  spikes while still tracking a sustained heat-up. Applies to every source.
+- **"This PC" (local, Windows) now reports CPU temperature** where the OS exposes
+  it — best-effort via WMI: LibreHardwareMonitor / OpenHardwareMonitor if running
+  (accurate), else the ACPI thermal zone. Plain Windows has no built-in CPU-temp
+  API, so on a desktop without one of those tools the local temp stays blank
+  (run LibreHardwareMonitor for a reliable reading). Linux/Pi hosts unaffected.
+
 ## [1.4.0] - 2026-06-30
 
 ### Added

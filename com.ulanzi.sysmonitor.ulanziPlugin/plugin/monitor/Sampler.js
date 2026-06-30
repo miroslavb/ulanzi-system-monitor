@@ -3,16 +3,16 @@
 
 import os from 'os';
 import fs from 'fs';
+import { execFile } from 'child_process';
 import { HISTORY } from './render.js';
+import { medianTemp } from './RemoteSampler.js';
 
 const clamp = (v) => Math.max(0, Math.min(100, v));
 const GB = 1024 * 1024 * 1024;
 
-// CPU temperature in whole °C (Linux /sys), or null where unavailable (Windows/mac
-// — the usual "This PC" host — and VMs).
+// CPU temperature in whole °C from Linux /sys (synchronous, cheap), or null.
 const TEMP_PRI = ['x86_pkg_temp', 'cpu-thermal', 'cpu_thermal', 'coretemp', 'k10temp', 'soc_thermal', 'soc', 'acpitz'];
-function readTemp() {
-  if (os.platform() !== 'linux') return null;
+function readLinuxTemp() {
   const zones = {};
   let dirs = [];
   try { dirs = fs.readdirSync('/sys/class/thermal'); } catch (e) { return null; }
@@ -29,16 +29,51 @@ function readTemp() {
   return vals.length ? Math.round(Math.max(...vals) / 1000) : null;
 }
 
+// Windows has no /sys; CPU temp comes from WMI. Best-effort, async, cached:
+// try LibreHardwareMonitor / OpenHardwareMonitor (accurate, if the user runs one),
+// then the ACPI thermal zone (often "not supported" on desktops). Prints a bare
+// °C integer, or nothing when unavailable (→ no temp shown, which is fine).
+const WIN_TEMP_PS = [
+  '$t=$null',
+  "try{$s=Get-CimInstance -Namespace root/LibreHardwareMonitor -ClassName Sensor -ErrorAction Stop|?{$_.SensorType -eq 'Temperature' -and $_.Name -match 'CPU'};if($s){$t=($s|Measure-Object Value -Maximum).Maximum}}catch{}",
+  "if($t -eq $null){try{$s=Get-CimInstance -Namespace root/OpenHardwareMonitor -ClassName Sensor -ErrorAction Stop|?{$_.SensorType -eq 'Temperature' -and $_.Name -match 'CPU'};if($s){$t=($s|Measure-Object Value -Maximum).Maximum}}catch{}}",
+  'if($t -eq $null){try{$z=Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop;if($z){$t=(($z|Measure-Object CurrentTemperature -Maximum).Maximum/10)-273.15}}catch{}}',
+  'if($t -ne $null){[math]::Round($t)}',
+].join(';');
+
 export default class Sampler {
   constructor(maxHistory = HISTORY) {
     this.max = maxHistory;
     this.cpu = [];           // %, oldest..newest
     this.mem = [];           // %, oldest..newest
     this.cores = os.cpus().length;
-    this.temp = readTemp();
+    this._tempHist = [];
+    this.temp = os.platform() === 'linux' ? medianTemp(this._tempHist, readLinuxTemp()) : null;
+    this._winPolling = false;
     this._prev = this._cpuTimes();
     this.lastCpu = 0;
     this.lastMem = { pct: 0, usedGB: 0, totalGB: os.totalmem() / GB };
+
+    // Windows temp can't be read synchronously — poll WMI on a slow timer.
+    if (os.platform() === 'win32') {
+      this._pollWinTemp();
+      const timer = setInterval(() => this._pollWinTemp(), 5000);
+      if (timer.unref) timer.unref();
+    }
+  }
+
+  // Best-effort Windows CPU temp via PowerShell/WMI; updates this.temp when it can.
+  _pollWinTemp() {
+    if (this._winPolling) return;
+    this._winPolling = true;
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', WIN_TEMP_PS],
+      { timeout: 4000, windowsHide: true },
+      (err, stdout) => {
+        this._winPolling = false;
+        if (err) return;                 // keep the last value on failure
+        const n = parseInt(String(stdout).trim(), 10);
+        if (Number.isFinite(n) && n > 0 && n < 150) this.temp = medianTemp(this._tempHist, n);
+      });
   }
 
   // Aggregate busy% across all cores via idle/total deltas between samples.
@@ -71,7 +106,7 @@ export default class Sampler {
 
     this.lastCpu = cpuPct;
     this.lastMem = { pct: memPct, usedGB: used / GB, totalGB: total / GB };
-    this.temp = readTemp();
+    if (os.platform() === 'linux') this.temp = medianTemp(this._tempHist, readLinuxTemp());   // win/mac: set by the poller
     return { cpu: cpuPct, mem: memPct };
   }
 

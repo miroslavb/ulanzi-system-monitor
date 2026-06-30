@@ -12,6 +12,18 @@ import { HISTORY } from './render.js';
 
 const clamp = (v) => Math.max(0, Math.min(100, Number(v) || 0));
 
+// CPU-package temperature is very spiky (brief micro-loads jump it 20–30°). Keep a
+// short rolling window and report the MEDIAN, which rejects single-sample spikes
+// while still tracking sustained changes. `raw` null (no sensor) clears + returns null.
+const TEMP_WINDOW = 5;
+export function medianTemp(hist, raw) {
+  if (raw == null || !isFinite(raw)) { hist.length = 0; return null; }
+  hist.push(raw);
+  while (hist.length > TEMP_WINDOW) hist.shift();
+  const s = [...hist].sort((a, b) => a - b);
+  return Math.round(s[Math.floor(s.length / 2)]);
+}
+
 // Accept "100.x.y.z:9888", "host", "http://host:9888", "https://h/metrics?token=..".
 // Normalise to a full URL whose path is /metrics, preserving any query (token).
 export function normalizeAgentUrl(raw) {
@@ -33,7 +45,8 @@ export default class RemoteSampler {
     this.cpu = [];
     this.mem = [];
     this.cores = 0;
-    this.temp = null;           // CPU temp °C, when the agent reports it
+    this.temp = null;           // CPU temp °C (median-smoothed), when reported
+    this._tempHist = [];        // recent raw temps for spike rejection
     this.lastCpu = 0;
     this.lastMem = { pct: 0, usedGB: 0, totalGB: 0 };
     this.ok = false;            // last fetch reachable?
@@ -109,7 +122,8 @@ export default class RemoteSampler {
         totalGB: Number(d.mem && d.mem.totalGB) || 0,
       };
       this.cores = Number(d.cores) || this.cores;
-      this.temp = (typeof d.temp === 'number' && isFinite(d.temp)) ? d.temp : null;
+      const rawTemp = (typeof d.temp === 'number' && isFinite(d.temp)) ? d.temp : null;
+      this.temp = medianTemp(this._tempHist, rawTemp);   // smooth spiky CPU-package readings
       this.remoteHost = d.host || this.remoteHost;
       this.ok = true;
       this.lastError = null;

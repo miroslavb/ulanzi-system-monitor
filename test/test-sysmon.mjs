@@ -9,7 +9,7 @@ const { readSettings, labelsOn, parseCell, resolveCell, readSwitchSettings, buil
 const Sampler = (await import(`${P}/Sampler.js`)).default;
 const RemoteSamplerMod = await import(`${P}/RemoteSampler.js`);
 const RemoteSampler = RemoteSamplerMod.default;
-const { normalizeAgentUrl } = RemoteSamplerMod;
+const { normalizeAgentUrl, medianTemp } = RemoteSamplerMod;
 const { MDI_LITE } = await import(`${P}/mdi-lite.js`);
 
 let passed = 0;
@@ -161,6 +161,17 @@ test('switchKeyDataUri: temperature digits top-right; offline hides temp', () =>
   assert.ok(!none.includes('°'), 'no temp text when unavailable');
   const off = decode(switchKeyDataUri({ alias: 'NUC', iconPath: MDI_LITE.server, offline: true, temp: 47 }));
   assert.ok(!off.includes('47°'), 'offline takes precedence over temp');
+});
+
+test('medianTemp: rejects spikes, tracks sustained change, null clears', () => {
+  const h = [];
+  let m;
+  for (const v of [42, 42, 71, 42, 60]) m = medianTemp(h, v);   // spiky package temp
+  assert.ok(m <= 45, `single-sample spikes rejected (got ${m})`);
+  for (const v of [70, 71, 72, 70, 71, 72]) m = medianTemp(h, v); // genuinely hot now
+  assert.ok(m >= 70, `tracks sustained high (got ${m})`);
+  assert.strictEqual(medianTemp(h, null), null, 'null (no sensor) clears to null');
+  assert.strictEqual(h.length, 0, 'history cleared on null');
 });
 
 test('curated MDI set: present, has expected host icons, light bundle', () => {
