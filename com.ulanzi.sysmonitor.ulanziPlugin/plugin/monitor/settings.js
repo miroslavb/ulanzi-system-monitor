@@ -68,6 +68,10 @@ export function readSwitchSettings(param = {}) {
     localIcon: (param.localIcon && String(param.localIcon).trim()) || 'monitor',
     hosts,
     theme: param.theme === 'light' ? 'light' : 'dark',
+    // Median-smooth the temperature reading (default on); off shows the raw value.
+    smoothTemp: param.smoothTemp === undefined
+      ? true
+      : !(param.smoothTemp === false || param.smoothTemp === 'false' || param.smoothTemp === 'off'),
   };
 }
 

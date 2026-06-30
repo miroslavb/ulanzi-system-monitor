@@ -34,6 +34,7 @@
     "Add host": "+ Add host",
     "Search icons": "Search icons…",
     "Close": "Close",
+    "Smooth temp": "Smooth temp",
     "SwitchHint": "Run a sysmon-agent on each host (see the project README) and enter its address here, e.g. http://100.x.y.z:9888. Pressing this key cycles through the hosts and switches the data source for all System Monitor graph keys on the deck. The key shows the current host's alias and icon."
   }
 }

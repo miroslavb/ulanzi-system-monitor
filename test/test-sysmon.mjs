@@ -119,6 +119,8 @@ test('readSwitchSettings: defaults, drops urlless hosts, default icon', () => {
   assert.strictEqual(s2.hosts.length, 2, 'host with no url dropped');
   assert.strictEqual(s2.hosts[0].icon, 'server', 'default icon when omitted');
   assert.strictEqual(s2.hosts[1].icon, 'nas');
+  assert.strictEqual(s.smoothTemp, true, 'smoothing defaults on');
+  assert.strictEqual(readSwitchSettings({ smoothTemp: 'off' }).smoothTemp, false, 'explicit off');
 });
 
 test('buildHostCycle: local first when included; remote ids = r:<url>', () => {

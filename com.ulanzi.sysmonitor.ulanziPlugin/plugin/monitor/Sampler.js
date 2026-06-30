@@ -33,10 +33,12 @@ function readLinuxTemp() {
 // try LibreHardwareMonitor / OpenHardwareMonitor (accurate, if the user runs one),
 // then the ACPI thermal zone (often "not supported" on desktops). Prints a bare
 // °C integer, or nothing when unavailable (→ no temp shown, which is fine).
+// CPU temp sensors are matched by Identifier (/intelcpu/ or /amdcpu/) — robust
+// across Intel ("CPU Package") and AMD ("Core (Tctl/Tdie)") naming.
 const WIN_TEMP_PS = [
   '$t=$null',
-  "try{$s=Get-CimInstance -Namespace root/LibreHardwareMonitor -ClassName Sensor -ErrorAction Stop|?{$_.SensorType -eq 'Temperature' -and $_.Name -match 'CPU'};if($s){$t=($s|Measure-Object Value -Maximum).Maximum}}catch{}",
-  "if($t -eq $null){try{$s=Get-CimInstance -Namespace root/OpenHardwareMonitor -ClassName Sensor -ErrorAction Stop|?{$_.SensorType -eq 'Temperature' -and $_.Name -match 'CPU'};if($s){$t=($s|Measure-Object Value -Maximum).Maximum}}catch{}}",
+  "try{$s=Get-CimInstance -Namespace root/LibreHardwareMonitor -ClassName Sensor -ErrorAction Stop|?{$_.SensorType -eq 'Temperature' -and $_.Identifier -match '/(intel|amd)cpu/'};if($s){$t=($s|Measure-Object Value -Maximum).Maximum}}catch{}",
+  "if($t -eq $null){try{$s=Get-CimInstance -Namespace root/OpenHardwareMonitor -ClassName Sensor -ErrorAction Stop|?{$_.SensorType -eq 'Temperature' -and $_.Identifier -match '/(intel|amd)cpu/'};if($s){$t=($s|Measure-Object Value -Maximum).Maximum}}catch{}}",
   'if($t -eq $null){try{$z=Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop;if($z){$t=(($z|Measure-Object CurrentTemperature -Maximum).Maximum/10)-273.15}}catch{}}',
   'if($t -ne $null){[math]::Round($t)}',
 ].join(';');
@@ -48,7 +50,9 @@ export default class Sampler {
     this.mem = [];           // %, oldest..newest
     this.cores = os.cpus().length;
     this._tempHist = [];
-    this.temp = os.platform() === 'linux' ? medianTemp(this._tempHist, readLinuxTemp()) : null;
+    const raw0 = os.platform() === 'linux' ? readLinuxTemp() : null;
+    this.tempRaw = raw0;                                  // latest raw (smoothing off)
+    this.temp = medianTemp(this._tempHist, raw0);         // median-smoothed (smoothing on)
     this._winPolling = false;
     this._prev = this._cpuTimes();
     this.lastCpu = 0;
@@ -72,7 +76,7 @@ export default class Sampler {
         this._winPolling = false;
         if (err) return;                 // keep the last value on failure
         const n = parseInt(String(stdout).trim(), 10);
-        if (Number.isFinite(n) && n > 0 && n < 150) this.temp = medianTemp(this._tempHist, n);
+        if (Number.isFinite(n) && n > 0 && n < 150) { this.tempRaw = n; this.temp = medianTemp(this._tempHist, n); }
       });
   }
 
@@ -106,7 +110,11 @@ export default class Sampler {
 
     this.lastCpu = cpuPct;
     this.lastMem = { pct: memPct, usedGB: used / GB, totalGB: total / GB };
-    if (os.platform() === 'linux') this.temp = medianTemp(this._tempHist, readLinuxTemp());   // win/mac: set by the poller
+    if (os.platform() === 'linux') {                     // win/mac: set by the poller
+      const raw = readLinuxTemp();
+      this.tempRaw = raw;
+      this.temp = medianTemp(this._tempHist, raw);
+    }
     return { cpu: cpuPct, mem: memPct };
   }
 

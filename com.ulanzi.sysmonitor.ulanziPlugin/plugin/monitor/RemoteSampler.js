@@ -46,6 +46,7 @@ export default class RemoteSampler {
     this.mem = [];
     this.cores = 0;
     this.temp = null;           // CPU temp °C (median-smoothed), when reported
+    this.tempRaw = null;        // latest raw reading (used when smoothing is off)
     this._tempHist = [];        // recent raw temps for spike rejection
     this.lastCpu = 0;
     this.lastMem = { pct: 0, usedGB: 0, totalGB: 0 };
@@ -123,6 +124,7 @@ export default class RemoteSampler {
       };
       this.cores = Number(d.cores) || this.cores;
       const rawTemp = (typeof d.temp === 'number' && isFinite(d.temp)) ? d.temp : null;
+      this.tempRaw = rawTemp;
       this.temp = medianTemp(this._tempHist, rawTemp);   // smooth spiky CPU-package readings
       this.remoteHost = d.host || this.remoteHost;
       this.ok = true;

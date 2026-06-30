@@ -193,8 +193,11 @@ function paintSwitch(s) {
   const offline = active && sel.id !== 'local' && src && src.ok === false;
   // Temperature is only meaningful for a source we actually sample (the active
   // remote, or local which is sampled every tick) and only when reachable.
-  const temp = (src && (sel.id === 'local' || active) && src.ok !== false && typeof src.temp === 'number')
-    ? src.temp : null;
+  // Show the median-smoothed value, or the raw reading when the switcher's
+  // "Smooth temperature" option is off.
+  const haveTemp = src && (sel.id === 'local' || active) && src.ok !== false;
+  const tval = haveTemp ? (s.smoothTemp === false ? src.tempRaw : src.temp) : null;
+  const temp = (typeof tval === 'number') ? tval : null;
   const iconPath = MDI_LITE[sel.icon] || MDI_LITE.server || '';
   $UD.setBaseDataIcon(s.context, switchKeyDataUri({
     alias: sel.alias, iconPath, theme: s.theme, active, offline, temp,

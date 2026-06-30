@@ -5,6 +5,19 @@ All notable changes to the **System Monitor** Ulanzi Deck plugin.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.2] - 2026-06-30
+
+### Added
+- **"Smooth temperature" toggle** in the Host Switch settings (default on). Off
+  shows the raw (un-medianed) reading.
+
+### Fixed
+- **Windows CPU temperature now works on AMD too.** The WMI query matched sensors
+  by name (`CPU`) — fine for Intel ("CPU Package") but missing AMD
+  ("Core (Tctl/Tdie)"). It now matches by **Identifier** (`/intelcpu/` or
+  `/amdcpu/`) and takes the hottest CPU sensor, via LibreHardwareMonitor /
+  OpenHardwareMonitor (run as Administrator for Ryzen).
+
 ## [1.4.1] - 2026-06-30
 
 ### Fixed

@@ -5,7 +5,7 @@
 
 const MDI = (typeof window !== 'undefined' && window.MDI_LITE) || {};
 
-let state = { includeLocal: true, localAlias: '', localIcon: 'monitor', theme: 'dark', hosts: [] };
+let state = { includeLocal: true, localAlias: '', localIcon: 'monitor', theme: 'dark', smoothTemp: true, hosts: [] };
 let pickerTarget = null;   // 'local' | <host index>
 
 function iconSvg(name, px) {
@@ -109,6 +109,7 @@ function buildSettings() {
     localAlias: (document.querySelector('#localAlias').value || '').trim(),
     localIcon: state.localIcon,
     theme: document.querySelector('#theme').value,
+    smoothTemp: !!document.querySelector('#smoothTemp').checked,
     hosts: state.hosts.map((h) => ({
       alias: (h.alias || '').trim(),
       url: (h.url || '').trim(),
@@ -121,6 +122,7 @@ function saveNow() {
   state.includeLocal = s.includeLocal;
   state.localAlias = s.localAlias;
   state.theme = s.theme;
+  state.smoothTemp = s.smoothTemp;
   $UD.sendParamFromPlugin(s);
 }
 const saveDebounced = (typeof Utils !== 'undefined' && Utils.debounce) ? Utils.debounce(saveNow) : saveNow;
@@ -132,6 +134,8 @@ function load(p) {
   state.localAlias = p.localAlias || '';
   state.localIcon = p.localIcon || 'monitor';
   state.theme = p.theme === 'light' ? 'light' : 'dark';
+  state.smoothTemp = p.smoothTemp === undefined
+    ? true : !(p.smoothTemp === false || p.smoothTemp === 'false' || p.smoothTemp === 'off');
   state.hosts = Array.isArray(p.hosts)
     ? p.hosts.map((h) => ({ alias: h.alias || '', url: h.url || '', icon: h.icon || 'server' }))
     : [];
@@ -139,6 +143,7 @@ function load(p) {
   document.querySelector('#includeLocal').checked = state.includeLocal;
   document.querySelector('#localAlias').value = state.localAlias;
   document.querySelector('#theme').value = state.theme;
+  document.querySelector('#smoothTemp').checked = state.smoothTemp;
   refreshIconBtn(document.querySelector('#localIconBtn'), state.localIcon, true);
   renderHosts();
 }
@@ -160,6 +165,7 @@ $UD.onConnected(() => {
   document.querySelector('#includeLocal').addEventListener('change', saveNow);
   document.querySelector('#localAlias').addEventListener('input', saveDebounced);
   document.querySelector('#theme').addEventListener('change', saveNow);
+  document.querySelector('#smoothTemp').addEventListener('change', saveNow);
   document.querySelector('#iconclose').addEventListener('click', closePicker);
   document.querySelector('#iconsearch').addEventListener('input', (e) => buildGrid(e.target.value));
 });
