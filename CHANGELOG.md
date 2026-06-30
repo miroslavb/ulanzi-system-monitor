@@ -5,6 +5,20 @@ All notable changes to the **System Monitor** Ulanzi Deck plugin.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-06-30
+
+### Fixed
+- **A remote source could silently drop until Ulanzi Studio was restarted.**
+  `RemoteSampler`'s HTTP fetch only handled `req` errors plus a socket-idle
+  timeout — with no handler for a response that stalled *after* the headers
+  (mid-stream). Such a stall left the promise unsettled, so the `_inflight` guard
+  stuck `true` and that host never polled again. Because every source behind one
+  machine shares that machine, a single blip could drop several at once (e.g. NUC +
+  HA + NAS, all served from the same box). The fetch now **always settles** via an
+  absolute deadline plus response `error`/`aborted`/oversize handlers, and
+  `sample()` has a stuck-guard that force-resets `_inflight` after 4× the timeout.
+  Recovery no longer needs a restart.
+
 ## [1.3.0] - 2026-06-29
 
 ### Added

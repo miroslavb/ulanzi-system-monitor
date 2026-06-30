@@ -26,9 +26,10 @@ export function normalizeAgentUrl(raw) {
 }
 
 export default class RemoteSampler {
-  constructor(url, maxHistory = HISTORY) {
+  constructor(url, maxHistory = HISTORY, timeoutMs = 2500) {
     this.url = normalizeAgentUrl(url);
     this.max = maxHistory;
+    this.timeoutMs = timeoutMs;
     this.cpu = [];
     this.mem = [];
     this.cores = 0;
@@ -38,36 +39,62 @@ export default class RemoteSampler {
     this.lastError = null;
     this.remoteHost = '';       // hostname reported by the agent
     this._inflight = false;
+    this._inflightSince = 0;
   }
 
-  _get(timeoutMs = 2500) {
+  // Fetch the agent JSON. The returned promise is GUARANTEED to settle: an
+  // absolute deadline timer plus handlers for socket error / mid-stream abort /
+  // oversize all route through one idempotent `finish()`. (Earlier versions only
+  // listened for `req` errors + a socket-idle timeout, so a response that stalled
+  // after headers left the promise hanging — which wedged `_inflight` true and
+  // silently killed the source until the plugin restarted.)
+  _get() {
+    const timeoutMs = this.timeoutMs;
     return new Promise((resolve, reject) => {
+      let settled = false;
+      let req = null;
+      const finish = (err, val) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try { if (req) req.destroy(); } catch (e) {}
+        if (err) reject(err); else resolve(val);
+      };
+      const timer = setTimeout(() => finish(new Error('timeout')), timeoutMs);
+
       let u;
-      try { u = new URL(this.url); } catch (e) { return reject(new Error('bad url')); }
+      try { u = new URL(this.url); } catch (e) { return finish(new Error('bad url')); }
       const lib = u.protocol === 'https:' ? https : http;
-      const req = lib.get(u, (res) => {
-        if (res.statusCode !== 200) {
-          res.resume();
-          return reject(new Error('HTTP ' + res.statusCode));
-        }
+      req = lib.get(u, (res) => {
+        if (res.statusCode !== 200) { res.resume(); return finish(new Error('HTTP ' + res.statusCode)); }
         let body = '';
         res.setEncoding('utf8');
-        res.on('data', (c) => { body += c; if (body.length > 1e6) req.destroy(); });
+        res.on('data', (c) => { body += c; if (body.length > 1e6) finish(new Error('too large')); });
+        res.on('aborted', () => finish(new Error('response aborted')));
+        res.on('error', (e) => finish(e));
         res.on('end', () => {
-          try { resolve(JSON.parse(body)); }
-          catch (e) { reject(new Error('bad json')); }
+          try { finish(null, JSON.parse(body)); }
+          catch (e) { finish(new Error('bad json')); }
         });
       });
-      req.on('error', reject);
-      req.setTimeout(timeoutMs, () => req.destroy(new Error('timeout')));
+      req.on('error', (e) => finish(e));
     });
   }
 
   // Async — fetch one snapshot and append to history. Never throws; on failure
   // it marks the source unreachable and freezes the existing history.
   async sample() {
-    if (this._inflight) return;          // don't pile up requests on a slow host
+    if (this._inflight) {
+      // Insurance: never let a wedged request kill this source permanently — if a
+      // poll has somehow been "in flight" far longer than the timeout, force-reset.
+      if (this._inflightSince && Date.now() - this._inflightSince > this.timeoutMs * 4) {
+        this._inflight = false;
+      } else {
+        return;                          // a poll is genuinely in progress — skip
+      }
+    }
     this._inflight = true;
+    this._inflightSince = Date.now();
     try {
       const d = await this._get();
       const cpu = clamp(d.cpu);

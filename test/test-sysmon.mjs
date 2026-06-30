@@ -173,4 +173,29 @@ await (async () => {
   });
 })();
 
+// Regression: a response that stalls mid-stream (headers sent, body never ends)
+// must NOT wedge the source. Before the fix the promise never settled and
+// _inflight stuck true forever, silently killing the host until a restart.
+await (async () => {
+  const http = await import('http');
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.write('{"cpu":1');            // partial — intentionally never res.end()
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const rs = new RemoteSampler(`127.0.0.1:${port}`, 120, 400);  // 400ms deadline
+  const t0 = Date.now();
+  await rs.sample();
+  const dt = Date.now() - t0;
+  await rs.sample();                   // must NOT be blocked by a stuck _inflight
+  test('stalled mid-stream response settles and never wedges _inflight', () => {
+    assert.ok(dt < 2500, `sample() returned promptly (${dt}ms), not hung`);
+    assert.strictEqual(rs._inflight, false, '_inflight cleared after a stall');
+    assert.strictEqual(rs.ok, false, 'source marked offline, not stuck');
+  });
+  if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
+  server.close();
+})();
+
 console.log(`\n${passed} checks passed`);
