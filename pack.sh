@@ -24,7 +24,7 @@ echo "built: $ZIP"
 # Standalone agent bundle (agent.mjs + README + systemd unit).
 AZIP="$OUT/sysmon-agent-${VER}.zip"
 rm -f "$AZIP"
-zip -r -q "$AZIP" agent -x "*/.DS_Store"
+zip -r -q "$AZIP" agent -x "*/.DS_Store" "*/__pycache__/*" "*.pyc"
 echo "built: $AZIP"
 
 unzip -l "$ZIP" | tail -n +4 | head -n 22

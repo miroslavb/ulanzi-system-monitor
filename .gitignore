@@ -3,3 +3,5 @@ dist/
 *.log
 .DS_Store
 ws-port.js
+__pycache__/
+*.pyc
