@@ -18,7 +18,7 @@ VER="$(node -p "require('./package.json').version")"
 ZIP="$OUT/${PLUG}-${VER}.zip"
 rm -f "$ZIP"
 cd "$ROOT"
-zip -r -q "$ZIP" "$PLUG" -x "*/.DS_Store" "*/npm-debug.log"
+zip -r -q "$ZIP" "$PLUG" -x "*/.DS_Store" "*/npm-debug.log" "*/.switch-state.json"
 echo "built: $ZIP"
 
 # Standalone agent bundle (agent.mjs + README + systemd unit).

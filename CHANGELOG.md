@@ -5,6 +5,26 @@ All notable changes to the **System Monitor** Ulanzi Deck plugin.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-07-02
+
+### Fixed
+- **Host list survives Ulanzi Studio restarts.** Studio does not reliably
+  re-deliver stored key settings to the plugin backend after a restart — the
+  Property Inspector still *shows* them, but the backend never receives them
+  (root-caused live on the sibling inference-monitor plugin, 2026-07-02, where
+  the deck sat on "agent off" until a setting was re-saved by hand). Here that
+  silently dropped the Host Switch's whole remote-hosts list. Now:
+  - the normalized switch settings (hosts / local entry / theme / smoothTemp)
+    are **persisted** to `plugin/monitor/.switch-state.json` on every
+    authoritative settings update and on every host switch (fail-open);
+  - on startup the plugin **seeds from the persisted state** and comes back on
+    the **same selected host** the deck was showing before the restart;
+  - keys re-added without params (both actions) trigger an active
+    **`getSettings` pull**, consumed via `didReceiveSettings` — at most once
+    per key, so never-configured keys can't loop. Incoming params carrying a
+    `hosts` array stay authoritative (an intentionally emptied list is
+    respected and persisted).
+
 ## [1.4.2] - 2026-06-30
 
 ### Added

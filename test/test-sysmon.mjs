@@ -222,4 +222,51 @@ await (async () => {
   server.close();
 })();
 
+// --- persist.js (Studio-restart resilience, v1.5.0) --------------------------
+console.log('persist:');
+await (async () => {
+  const { loadState, saveState } = await import(`${P}/persist.js`);
+  const { tmpdir } = await import('os');
+  const { join } = await import('path');
+  const { writeFileSync: wf, rmSync } = await import('fs');
+  const f = join(tmpdir(), `sysmon-persist-test-${process.pid}.json`);
+  rmSync(f, { force: true });
+
+  test('persist: missing file -> null', () => {
+    assert.strictEqual(loadState(f), null);
+  });
+
+  const sw = readSwitchSettings({
+    includeLocal: false,
+    hosts: [
+      { alias: 'hermes', url: '100.110.137.47', icon: 'server' },
+      { alias: 'cctv', url: '100.122.239.77:9888', icon: 'cctv' },
+    ],
+    theme: 'dark', smoothTemp: false,
+  });
+
+  test('persist: save + load round-trips the switch state', () => {
+    assert.strictEqual(saveState(f, { switch: sw, currentSourceId: 'r:100.122.239.77:9888' }), true);
+    const p = loadState(f);
+    assert.strictEqual(p.currentSourceId, 'r:100.122.239.77:9888');
+    assert.deepStrictEqual(p.switch.hosts, sw.hosts);
+  });
+
+  test('persist: loaded state re-normalizes cleanly through readSwitchSettings', () => {
+    const seeded = readSwitchSettings(loadState(f).switch);
+    assert.deepStrictEqual(seeded.hosts, sw.hosts);
+    assert.strictEqual(seeded.includeLocal, false);
+    assert.strictEqual(seeded.smoothTemp, false);
+    // and the cycle rebuilds identically (the actual restart path)
+    assert.deepStrictEqual(buildHostCycle(seeded), buildHostCycle(sw));
+  });
+
+  test('persist: corrupt file -> null (fail-open)', () => {
+    wf(f, 'not json{{{');
+    assert.strictEqual(loadState(f), null);
+  });
+
+  rmSync(f, { force: true });
+})();
+
 console.log(`\n${passed} checks passed`);

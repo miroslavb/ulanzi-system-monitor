@@ -14,12 +14,15 @@
 // the STABLE actionid (not the flip-prone "col_row" key) and each key renders
 // independently (whole grid graph, cropped to its own cell).
 
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { UlanziApi } from './common-node/index.js';
 import Sampler from './monitor/Sampler.js';
 import RemoteSampler, { normalizeAgentUrl } from './monitor/RemoteSampler.js';
 import { buildInner, keyDataUri, buildDiagnostic, switchKeyDataUri } from './monitor/render.js';
 import { parseKey } from './monitor/layout.js';
 import { readSettings, readSwitchSettings, buildHostCycle, resolveCell, DEFAULT_MS } from './monitor/settings.js';
+import { loadState, saveState } from './monitor/persist.js';
 import { MDI_LITE } from './monitor/mdi-lite.js';
 
 const PLUGIN_UUID = 'com.ulanzi.ulanzistudio.sysmonitor';
@@ -37,6 +40,40 @@ function ensureSource(id, url) {
   return sources[id];
 }
 function activeSource() { return sources[currentSourceId] || sources.local; }
+
+// --- Studio-restart resilience -------------------------------------------------
+// Studio does not reliably re-deliver stored key settings to the backend after a
+// restart (the PI shows them; the backend never gets them) — without this the
+// Host Switch would silently lose its remote-hosts list. See persist.js.
+const PERSIST_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'monitor', '.switch-state.json');
+const persisted = loadState(PERSIST_FILE);   // { switch: {...}, currentSourceId } | null
+
+// Come back on the same host the deck was showing before the restart.
+if (persisted && persisted.currentSourceId && persisted.currentSourceId !== 'local') {
+  const h = ((persisted.switch && persisted.switch.hosts) || [])
+    .find((x) => x && x.url && 'r:' + x.url === persisted.currentSourceId);
+  if (h) { ensureSource('r:' + h.url, h.url); currentSourceId = 'r:' + h.url; }
+}
+
+function persistSwitchState(s) {
+  saveState(PERSIST_FILE, {
+    switch: {
+      includeLocal: s.includeLocal, localAlias: s.localAlias, localIcon: s.localIcon,
+      hosts: s.hosts, theme: s.theme, smoothTemp: s.smoothTemp,
+    },
+    currentSourceId,
+  });
+}
+
+// Ask Studio for a key's saved settings at most once per actionid (reply comes
+// back as didReceiveSettings → upsert), so a genuinely never-configured key
+// can't cause a request loop.
+const settingsRequested = new Set();
+function pullSettingsOnce(id, context) {
+  if (settingsRequested.has(id)) return;
+  settingsRequested.add(id);
+  try { $UD.getSettings(context); } catch (e) { /* fail-open */ }
+}
 
 // --- instances ---------------------------------------------------------------
 const graphs = {};       // actionid -> { id, context, keyCol, keyRow, active, ...graphSettings }
@@ -71,27 +108,54 @@ function upsertGraph(id, key, jsn) {
   }
   graphs[id].context = jsn.context;
   Object.assign(graphs[id], readSettings(jsn.param));
+  // Re-added without params after a Studio restart → pull the saved ones.
+  if (!jsn.param || Object.keys(jsn.param).length === 0) pullSettingsOnce(id, jsn.context);
   recomputeRefresh();
   paint();
 }
 
 function upsertSwitch(id, jsn) {
-  if (!switches[id]) {
+  const created = !switches[id];
+  if (created) {
     $UD.logMessage(`add hostswitch actionid="${id}"`, 'debug');
     switches[id] = { id, context: jsn.context, active: true, index: 0 };
   }
   switches[id].context = jsn.context;
-  Object.assign(switches[id], readSwitchSettings(jsn.param));
-  // Keep the selected index within the (possibly re-sized) cycle.
+
+  // Params carrying a `hosts` array are authoritative (the PI always sends the
+  // full form — including an intentionally emptied list). Params WITHOUT it mean
+  // Studio re-added the key but dropped the stored settings (restart): seed from
+  // the persisted copy and ask Studio for the real ones (once per key).
+  if (jsn.param && Array.isArray(jsn.param.hosts)) {
+    Object.assign(switches[id], readSwitchSettings(jsn.param));
+    persistSwitchState(switches[id]);
+  } else {
+    const seed = (persisted && persisted.switch) || jsn.param || {};
+    Object.assign(switches[id], readSwitchSettings(seed));
+    pullSettingsOnce(id, jsn.context);
+  }
+
+  // Keep the selected index within the (possibly re-sized) cycle; a freshly
+  // (re-)created key points at the restored current source, not entry 0.
   const cycle = buildHostCycle(switches[id]);
-  if (cycle.length) switches[id].index = ((switches[id].index % cycle.length) + cycle.length) % cycle.length;
-  else switches[id].index = 0;
+  if (cycle.length) {
+    if (created) {
+      const ci = cycle.findIndex((c) => c.id === currentSourceId);
+      if (ci >= 0) switches[id].index = ci;
+    }
+    switches[id].index = ((switches[id].index % cycle.length) + cycle.length) % cycle.length;
+  } else switches[id].index = 0;
   paintSwitch(switches[id]);
 }
 
 $UD.onAdd((jsn) => upsert(jsn));
 $UD.onParamFromPlugin((jsn) => upsert(jsn));
 $UD.onParamFromApp((jsn) => upsert(jsn));
+// Reply to our getSettings pull; Studio may put the payload in `param` or `settings`.
+$UD.onDidReceiveSettings((jsn) => {
+  if (!jsn || !jsn.context) return;
+  upsert({ context: jsn.context, param: jsn.param || jsn.settings || {} });
+});
 
 $UD.onSetActive((jsn) => {
   const { id, uuid } = decode(jsn.context);
@@ -119,6 +183,7 @@ $UD.onRun((jsn) => {
   const sel = cycle[s.index];
   ensureSource(sel.id, sel.url);
   currentSourceId = sel.id;
+  persistSwitchState(s);          // survive a Studio restart on the same host
   $UD.logMessage(`host switch -> ${sel.alias} (${sel.id})`, 'info');
   // Sample the newly selected source right away, then repaint everything.
   Promise.resolve(activeSource().sample && activeSource().sample()).finally(paint);

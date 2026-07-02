@@ -5,3 +5,4 @@ dist/
 ws-port.js
 __pycache__/
 *.pyc
+.switch-state.json
